@@ -1,0 +1,72 @@
+{
+    "common": {
+        "name": "evohome",
+        "version": "0.0.1",
+        "news": {
+            "0.0.1": {
+                "en": "initial release",
+                "de": "Erstveröffentlichung",
+                "ru": "Начальная версия",
+                "pt": "lançamento inicial",
+                "nl": "Eerste uitgave",
+                "fr": "Première version",
+                "it": "Versione iniziale",
+                "es": "Versión inicial",
+                "pl": "Pierwsze wydanie",
+                "zh-cn": "首次出版"
+            }
+        },
+        "title": "Honeywell EvoHome cloud adaptor",
+        "titleLang": {
+            "en": "Honeywell EvoHome cloud adaptor"
+        },
+        "desc": {
+            "en": "Honeywell EvoHome cloud adaptor"
+        },
+        "authors": [
+            "Author <taragorm@zoho.eu>"
+        ],
+        "keywords": [
+            "ioBroker",
+            "adaptor",
+            "Smart Home",
+            "home automation",
+            "honeywell",
+            "evoHome"
+        ],
+        "platform": "Javascript/Node.js",
+        "main": "main.js",
+        "icon": "tcc.png",
+        "enabled": true,
+        "extIcon": "https://raw.githubusercontent.com/Taragorm/ioBroker.evohome/master/admin/tcc.png",
+        "readme": "https://github.com/Taragorm/ioBroker.evohome/blob/master/README.md",
+        "loglevel": "info",
+        "mode": "daemon",
+        "type": "general",
+        "compact": true,
+        "materialize": true,
+        "materializeTab": true,
+        "adminTab": {
+            "singleton": true,
+            "name": {
+                "en": "Honeywell EvoHome cloud adaptor"
+            },
+            "link": "",
+            "fa-icon": "info"
+        },
+        "supportCustoms": true,
+        "dependencies": [
+            {
+                "admin": ">=3.0.0"
+            }
+        ]
+    },
+    "native": {
+        "username": "",
+        "password": "",
+        "pollSeconds": 120,
+        "simpleTree": false
+    },
+    "objects": [],
+    "instanceObjects": []
+}
