@@ -116,6 +116,9 @@ var taragorm_common = taragorm_common || {
     },
 
     getColourVector: function(vname) {
+    	if(vname)
+    		vname = vname.trim();
+    		
         if(!vname)
             return this.$indoor;
 

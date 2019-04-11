@@ -60,9 +60,9 @@ vis.binds["evohome_zone"] = {
         var vect = taragorm_common.getColourVector(data.colours);
         var mvcols = taragorm_common.getColours(mv, vect, data.interpolate);
         var spbg = taragorm_common.getBackground(sp, vect, data.interpolate);
-        $div.find('.vis_taragorm_zone-table').css({ "background": "radial-gradient("+ mvcols.b+", "+ spbg + ")", "foreground-color": mvcols.f } );                            
+        $div.find('.vis_evohome_zone-table').css({ "background": "radial-gradient("+ mvcols.b+", "+ spbg + ")", "foreground-color": mvcols.f } );                            
         $div.find('.vis_evohome_zone-mode').html( this.shortModes[v.setpointMode] || v.setpointMode  ); 
-        $div.find('.vis_evohome_zone-fault').html( this.faults.join()  ); 
+        //$div.find('.vis_evohome_zone-fault').html( v.faults.join()  ); 
     },
     
     

@@ -17,6 +17,15 @@ table.vis_evohome_zone-table  {
     text-align: center;
 }
 
+.vis_evohome_zone-sp {
+ font-size: 80%;
+}
+
+.vis_evohome_zone-mode {
+ font-size: 80%;
+}
+
 .vis_evohome_zone-fault {
-   color: red;
+ font-size: 80%;
+ color: red;
 }
