@@ -155,7 +155,7 @@ riable', {
 
     }
     //----------------------------------------------------------------------------------------------
-    async mergeStatus(){
+    async mergeStatus() {
         await this.evo.getStatus();
         for(let loc of this.evo.locations()) {
             for(let gw of loc.gateways) {
@@ -173,6 +173,8 @@ riable', {
                         ss("setpoint");
                         ss("setpointMode");
                         ss("faults");
+
+                        this.setState(sensor+"zone", { val: JSON.stringify(st), ack: true});
                     }
                 }
             }
@@ -199,6 +201,8 @@ riable', {
                         await this.makeState( sensor+"setpoint", "setpoint", "number", this.unit, true );
                         await this.makeState( sensor+"setpointMode", "setpointMode", "string"  );
                         await this.makeState( sensor+"faults", "faults", "string"  );
+                        await this.makeState( sensor+"zone", "Zone as JSON", "string", "json"  );
+                        await this.makeState( sensor+"zone_cmd", "Zone Command Point", "string", "json", true  );
                     }
                 }
             }

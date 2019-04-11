@@ -1,0 +1,22 @@
+/* Style your widget here */
+.vistaragorm-class {
+    font-style: italic;
+}
+
+table.vis_evohome_zone-table  {
+    border:solid black 1px;
+    border-radius:6px;
+/*    padding: 3px; */
+}
+
+.vis_evohome_zone-table th {
+    text-align: center;
+}
+
+.vis_evohome_zone-table td {
+    text-align: center;
+}
+
+.vis_evohome_zone-fault {
+   color: red;
+}

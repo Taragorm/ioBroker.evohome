@@ -432,13 +432,13 @@ class HeatZone {
         });
     }
     //------------------------------------------------------------------
-    async setModeNormal() { await this.setMode('Auto'); }
-    async setModeReset() { await this.setMode('AutoWithReset'); }
-    async setModeCustom() { await this.setMode('Custom'); }
-    async setModeEco() { await this.setMode('AutoWithEco'); }
-    async setModeAway() { await this.setMode('Away'); }
-    async setModeDayOff() { await this.setMode('DayOff'); }
-    async setModeOff() { await this.setMode('HeatingOff'); }
+    async setModeNormal(until) { await this.setMode('Auto',until); }
+    async setModeReset(until) { await this.setMode('AutoWithReset',until); }
+    async setModeCustom(until) { await this.setMode('Custom',until); }
+    async setModeEco(until) { await this.setMode('AutoWithEco',until); }
+    async setModeAway(until) { await this.setMode('Away',until); }
+    async setModeDayOff(until) { await this.setMode('DayOff',until); }
+    async setModeOffuntil() { await this.setMode('HeatingOff',until); }
     //------------------------------------------------------------------
 };
 //============================================================
