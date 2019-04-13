@@ -119,9 +119,11 @@ vis.binds["evohome_zone"] = {
                     ctx.slider_handle.text( $( this ).slider( "value" ) );
                 },
                 change: function( event, ui ) {
+                    ctx.sel_sp = ui.value;
                     ctx.slider_handle.text( ui.value );
                 },
                 slide: function( event, ui ) {
+                    ctx.sel_sp = ui.value;
                     ctx.slider_handle.text( ui.value );
                 }
               });
@@ -174,10 +176,14 @@ vis.binds["evohome_zone"] = {
     },
     //--------------------------------------------------------------------
     _onApply: function(ctx) {
+        vis.setValue(ctx.data.zone_oid+"_cmd", 
+            `{ "command":"Override", "setpoint":${ctx.sel_sp} }`
+            );
         ctx.dialog.dialog("close");
     },
     //--------------------------------------------------------------------
     _openModeDialog: function(ctx) {
+        ctx.sel_sp = ctx.sp;
         ctx.temp_slider.slider("value", ctx.sp);
         ctx.dialog.dialog("open");
     }

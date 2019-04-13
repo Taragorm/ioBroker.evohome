@@ -605,10 +605,13 @@ class HeatZone extends ZoneBase {
     }
     //------------------------------------------------------------------
     async setTemperature(temperature, until) {
-        const data = {"SetpointMode": "PermanentOverride",
-                    "HeatSetpointValue": temperature,
-                    "TimeUntil": Evo.toDateTimeString() 
+        const data = {
+                    "SetpointMode": "PermanentOverride",
+                    "HeatSetpointValue": temperature
                     };
+
+        if(until)
+                data.TimeUntil = Evo.toDateTimeString(until);
 
         await this._setHeatSetpoint(data);        
     }
@@ -616,19 +619,25 @@ class HeatZone extends ZoneBase {
     //------------------------------------------------------------------
     async _setHeatSetpoint(data) {
         const uri = this.getURI() + "/heatSetpoint";
-        const headers = this.$evo.headers(true);
-        const status = await req({
-            method:'PUT',
-            uri: uri,
-            headers: headers,
-            json: data
-        });
+        const headers = await this.$evo.headers(true);
+        console.log(uri, "<--", JSON.stringify(data) );
+        try
+        {
+            const status = await req({
+                method:'PUT',
+                uri: uri,
+                headers: headers,
+                json: data
+            });
+        } catch(e) {
+            throw Error( `PUT failed to ${uri} reason=${e}\n data=${JSON.stringify(data)}\n hdr=${headers}` )
+        }
     }
     //------------------------------------------------------------------
     async cancelTemperatureOverride() {
-        const data = {"SetpointMode": "FollowSchedule",
-                "HeatSetpointValue": 0.0,
-                "TimeUntil": undefined
+        const data = {
+                "SetpointMode": "FollowSchedule",
+                "HeatSetpointValue": 0.0
                 };
 
         await this._setHeatSetpoint(data);        
