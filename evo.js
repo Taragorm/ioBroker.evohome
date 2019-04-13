@@ -44,7 +44,27 @@ class Evo {
         this.access_token = undefined;
         this.access_token_expires = undefined;
         this.system = undefined;
+        this.label = "EVO";
         
+    }
+    //--------------------------------------------------------
+    /**
+     * Create a pristine daily schedule
+     */
+    static createDailySchedule() {
+        return new DailySchedule();
+    }
+    //--------------------------------------------------------
+    /**
+     * Convert a date/time to iso string format
+     * @param {*} d 
+     */
+    static toDateTimeString(d) {
+        
+        if(!d || typeof d == "string")
+            return d;
+
+        return d.roISOSTring();
     }
     //--------------------------------------------------------
     /**
@@ -107,12 +127,19 @@ class Evo {
      * get headers, recreating the access token as required.
      * @returns {nm$_evo.Evo._headers}
      */
-    async headers() {
+    async headers(json) {
         if(
                 !this.access_token
                 || !this.access_token_expires
                 || new Date() > this.access_token_expires
         ) await this._basicLogin()
+
+        if(json) {
+            let h = Object.assign({}, this._headers);
+            h['Content-Type'] = 'application/json';
+            return h;
+        }
+
         return this._headers;
     }    
     //--------------------------------------------------------
@@ -205,6 +232,7 @@ class Location  {
         assert(pjso.gateways !== undefined );
         assert(this.gateways !== undefined );
         assert(this.getStatus !== undefined );
+        assert(this.$evo !== undefined && this.$evo.label == "EVO");
     }
     
     //---------------------------------------------------------
@@ -232,7 +260,7 @@ class Location  {
         for(let gws of this.$status.gateways) {
             let gw = this.gatewayById(gws.gatewayId, false);
             if(!gw) {
-                this.$evo.setStructrueError(`Unknown gateway in status ${gws.gatewayId}`);
+                this.$evo.setStructureError(`Unknown gateway in status ${gws.gatewayId}`);
                 continue;
             }
                 
@@ -241,7 +269,7 @@ class Location  {
             for(let css of gws.temperatureControlSystems) {
                 let cs = gw.controlSystemById(css.systemId, false);
                 if(!cs) {
-                    this.$evo.setStructrueError(`Unknown Control System in status ${css.systemId}`);
+                    this.$evo.setStructureError(`Unknown Control System in status ${css.systemId}`);
                     continue;
                 }
                 cs.$status = css;
@@ -249,10 +277,12 @@ class Location  {
                 for(let zs of css.zones) {
                     let z = cs.zoneById(zs.zoneId, false);
                     if(!z) {
-                        this.$evo.setStructrueError(`Unknown Zone in status ${zs.zoneId}`);
+                        this.$evo.setStructureError(`Unknown Zone in status ${zs.zoneId}`);
                         continue;
                     }
                     z.status = zs; // note no $ prefix
+
+                    await z.getSchedule();
                 }
             }
         }
@@ -284,6 +314,21 @@ class Location  {
     //---------------------------------------------------------
     name() { return this.locationInfo.name; }
     //---------------------------------------------------------
+    /**
+     * Do an operation set by a JSON-formatted string.
+     * In this case, they are applied to all controllers.
+     * @param {json} cmd 
+     */
+    async doSystemCommand(cmd) {
+        if( typeof cmd == "string")            
+            cmd = JSON.parse(cmd);
+
+        for(let gw of this.gateways)
+            for(let cs of gw.zones)
+                await cs.doSystemCommand(cmdjson);
+    }
+    //---------------------------------------------------------
+
 };
 //============================================================
 /**
@@ -294,7 +339,8 @@ class Gateway {
         Object.assign(this, pjso);
         // $ prefix allows us to filter refs out
         this.$location = loc;
-        this.$evo = loc.evo;
+        this.$evo = loc.$evo;
+        assert(this.$evo !== undefined && this.$evo.label == "EVO");
     }
     
     //---------------------------------------------------------
@@ -327,7 +373,8 @@ class TemperatureControlSystem {
         Object.assign(this, pjso);
         // $ prefix allows us to filter refs out
         this.$gateway = gateway;
-        this.$evo = gateway.evo;
+        this.$evo = gateway.$evo;
+        assert(this.$evo !== undefined && this.$evo.label == "EVO");
     }
     //-------------------------------------------------
     /**
@@ -373,18 +420,77 @@ class TemperatureControlSystem {
             yield z;
     }
     //-------------------------------------------------
+    /**
+     * Set system mode
+     * @param {string} mode 
+     * @param {time} until 
+     */
+    async setMode(mode, until) {
+        
+        if(until) {
+            ft = `${until.getFullYear()}:${until.getMonth()}:${until.getDay()}T00:00:00Z`;
+            var body = { 'SystemMode':mode, "TimeUntil": ft, 'Permenant' : false };
+        } else {
+            var body = { 'SystemMode':mode, "TimeUntil": undefined, 'Permenant' : true }            
+        }
+            
+        
+        let headers = await this.$evo.headers(); 
+        headers['Content-Type'] = 'application/json';
+        
+        let uri = HONEYWELL + `WebAPI/emea/api/v1/temperatureControlSystem/${this.$system.id()}/mode`;
+        console.log(`Mode  put to ${uri}`);
+        this.$status = await req({
+            method:'PUT',
+            uri: uri,
+            headers: headers,
+            json: body
+        });
+    }
+    //------------------------------------------------------------------
+    /**
+     * Set to normal, Auto mode, except if in permenant override
+     */
+    async setModeNormal(until) { await this.setMode('Auto', until); }
+
+    /**
+     * Set to Auto, even if in permenant override
+     */
+    async setModeReset(until) { await this.setMode('AutoWithReset', until); }
+
+    
+    async setModeCustom(until) { await this.setMode('Custom', until); }
+    async setModeEco(until) { await this.setMode('AutoWithEco', until); }
+    async setModeAway(until) { await this.setMode('Away', until); }
+    async setModeDayOff(until) { await this.setMode('DayOff', until); }
+    async setModeOff(until) { await this.setMode('HeatingOff', until); }
+    //------------------------------------------------------------------
+    /**
+     * Do an operation set by a JSON-formatted string.
+     * @param {json} cmdjson 
+     */
+    async doSystemCommand(cmd) {
+        if( typeof cmd == "string")            
+            cmd = JSON.parse(cmd);
+        switch(cmd.command) {
+            case "setmode":
+                await this.setMode(cmd.mode, cmd.until);
+                break;
+
+            default:
+                throw new Error(`Unsupported TemperatureController command [${cmd.command}]`);
+        }
+    }
+    //------------------------------------------------------------------
+
 };
 //============================================================
-/**
- * Extend HeatingZone with some methods
- */
-class HeatZone {
-    constructor(sys, pjso)  {
-        Object.assign(this, pjso);
+class ZoneBase {
+    constructor(sys)  {
         this.$system = sys;
-        this.$evo = sys.evo;
+        this.$evo = sys.$evo;
+        assert(this.$evo !== undefined && this.$evo.label == "EVO");
     }
-    
     //------------------------------------------------------------------
     /**
      * return compact status of zone
@@ -409,38 +515,245 @@ class HeatZone {
         };
     }
     //------------------------------------------------------------------
-    async setMode(mode, until) {
-        
-        if(until) {
-            ft = `${until.getFullYear()}:${until.getMonth()}:${until.getDay()}T00:00:00Z`;
-            var body = { 'SystemMode':mode, "TimeUntil": ft, 'Permenant' : false };
-        } else {
-            var body = { 'SystemMode':mode, "TimeUntil": undefined, 'Permenant' : true }            
-        }
-            
-        
+    getURI() {
+        return HONEYWELL + `WebAPI/emea/api/v1/${this.zone_type}/${this.zoneId}`;
+    }
+    //------------------------------------------------------------------
+    /**
+     * Get the schedule for the zone into $schedule, also return it.
+     */
+    async getSchedule()
+    {
+        let headers = await this.$evo.headers(); 
+        let uri = this.getURI()+"/schedule";
+        console.log(`Schedule get ${uri}`);
+        this.$schedule = await req({
+            method:'GET',
+            uri: uri,
+            headers: headers,
+            json: true
+        });
+
+        return this.$schedule;
+    }
+    //------------------------------------------------------------------
+    async setSchedule(schedule) {
+
         let headers = await this.$evo.headers(); 
         headers['Content-Type'] = 'application/json';
         
-        let uri = HONEYWELL + `WebAPI/emea/api/v1/temperatureControlSystem/${this.$system.id()}/mode`;
-        console.log(`Mode  put to ${uri}`);
+        let uri = this.getURI()+"/schedule";
+        console.log(`Scedule Put ${uri}`);
         this.$status = await req({
             method:'PUT',
             uri: uri,
             headers: headers,
-            json: body
+            json: schedule
+        });
+        
+    }
+    //------------------------------------------------------------------
+    /**
+     * Do an operation set by a JSON-formatted string
+     * @param {json} cmd 
+     */
+    async doZoneCommand(cmd) {
+        if( typeof cmd == "string")            
+            cmd = JSON.parse(cmd);
+
+        switch(cmd.command) {
+            // TODO 
+            default:
+                throw new Error(`Unsupported Zone command [${cmd.command}]`);
+        }
+    }
+    //------------------------------------------------------------------
+}
+//============================================================
+/**
+ * Extend HeatingZone
+ */
+class HeatZone extends ZoneBase {
+    constructor(sys, pjso)  {
+        super(sys);
+        Object.assign(this, pjso);
+        this.zone_type = 'temperatureZone';
+        assert(this.$evo !== undefined && this.$evo.label == "EVO");
+    }
+    //------------------------------------------------------------------
+    /**
+     * Do an operation set by a JSON-formatted string
+     * @param {json} cmd 
+     */
+    async doZoneCommand(cmd) {
+        if( typeof cmd == "string")            
+            cmd = JSON.parse(cmd);
+
+        switch(cmd.command) {
+            case "Override":
+                await this.setTemperature(cmd.setpoint, cmd.until);
+                break;
+6
+            case "CancelOverride":
+                await this.cancelTemperatureOverride();
+                break;
+
+            default:
+                await super.doZoneCommand(cmd);
+                break;
+        }
+    }
+    //------------------------------------------------------------------
+    async setTemperature(temperature, until) {
+        const data = {"SetpointMode": "PermanentOverride",
+                    "HeatSetpointValue": temperature,
+                    "TimeUntil": Evo.toDateTimeString() 
+                    };
+
+        await this._setHeatSetpoint(data);        
+    }
+
+    //------------------------------------------------------------------
+    async _setHeatSetpoint(data) {
+        const uri = this.getURI() + "/heatSetpoint";
+        const headers = this.$evo.headers(true);
+        const status = await req({
+            method:'PUT',
+            uri: uri,
+            headers: headers,
+            json: data
         });
     }
     //------------------------------------------------------------------
-    async setModeNormal(until) { await this.setMode('Auto',until); }
-    async setModeReset(until) { await this.setMode('AutoWithReset',until); }
-    async setModeCustom(until) { await this.setMode('Custom',until); }
-    async setModeEco(until) { await this.setMode('AutoWithEco',until); }
-    async setModeAway(until) { await this.setMode('Away',until); }
-    async setModeDayOff(until) { await this.setMode('DayOff',until); }
-    async setModeOffuntil() { await this.setMode('HeatingOff',until); }
+    async cancelTemperatureOverride() {
+        const data = {"SetpointMode": "FollowSchedule",
+                "HeatSetpointValue": 0.0,
+                "TimeUntil": undefined
+                };
+
+        await this._setHeatSetpoint(data);        
+    }
     //------------------------------------------------------------------
-};
+}
+//============================================================
+/*
+{"dailySchedules":[
+    {
+        "dayOfWeek":"Monday",
+        "switchpoints":[
+            {"heatSetpoint":21,"timeOfDay":"08:00:00"},
+            {"heatSetpoint":16,"timeOfDay":"17:30:00"},
+            {"heatSetpoint":5,"timeOfDay":"22:30:00"}
+            ]
+    },
+    ETC
+]
+}
+*/
+
+//============================================================
+class DailySchedule {
+    constructor(raw) {
+        if(raw) {
+            Object.assign(this, raw);
+            for(let i=0; i<this.dailySchedules.length; ++i) {
+                this.dailySchedules[i] = new DailySchedule(this.dailySchedules[i]);
+            }
+        } else {
+            this.dailySchedules = [];
+            for (const day of DailySchedule.days() ) {
+                this.dailySchedules.push(new DaySchedule(null,day));                    
+            }
+        }
+    }
+    //---------------------------------------------------------
+    static days() {
+        return [ "Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    }
+
+    //---------------------------------------------------------
+    /**
+     * Get a day's schedule by index or by name. Monday is day 0
+     * @param {*} ixOrName 
+     */
+    getDay(ixOrName) {
+        if(typeof ixOrName == "number")
+            return this.dailySchedules[ixOrName];
+
+        for (const dsch of this.dailySchedules) {
+            if(ixOrName.localeCompare(dsch.dayOfWeek, undefined, { sensitivity: 'base' }) === 0)
+                return dsch;
+        }
+    }
+    //---------------------------------------------------------
+}
+//============================================================
+class DaySchedule {
+    //---------------------------------------------------------
+    constructor(raw,dow)
+    {
+        if(raw) {
+            Object.assign(this, raw);
+            for(let i=0; i<this.switchpoints.length; ++i) {
+                this.switchpoints[i] = new HeatSwitchpoint(this.switchpoints[i]);
+            }
+
+        } else {
+            this.switchpoints=[];
+            this.dayOfWeek = dow;
+        }
+    }
+    //---------------------------------------------------------
+    /**
+     * Create a new switch point, and add to this.switchpoints
+     * @param {number} value 
+     * @param {string} timeOfDay 
+     */
+    createSwitchPoint(value,timeOfDay) {
+        let swp = new HeatSwitchpoint(null, value,timeOfDay);
+        this.switchpoints.push(swp);
+        this.rationaliseSwitchpoints(swp);
+        return swp;
+    }
+    //---------------------------------------------------------
+    /**
+     * Sort the switchpoints, eliminating duplicate times.
+     * 
+     * You can pass any number of "keeper" switchpoints which
+     * will be used in case of a duplicated time.
+     * 
+     */
+    rationaliseSwitchpoints() {
+        this.switchpoints.sort( (a,b) => a.timeOfDay.localeCompare(b.timeOfDay) );
+
+        for(let i=this.switchpoints.length-2; i>=0; --i) {
+            let a = this.switchpoints[i];
+            let b = this.switchpoints[i+1];
+            if( a.timeOfDay.localeCompare(b.timeOfDay) == 0) {
+                // they are equal?
+                if(arguments && arguments.indexOf(a) != -1 ) {
+                    // keep a
+                    this.switchpoints.splice(i+1,1);
+                } else {
+                    // keep b
+                    this.switchpoints.splice(i,1);
+                }
+            }
+        }
+    }
+    //---------------------------------------------------------
+}
+//============================================================
+class HeatSwitchpoint {
+    constructor(raw, value, timeOfDay) {
+        if(raw) {
+            Object.assign(this, raw);
+        } else {
+            this.heatSetpoint = value;
+            this.timeOfDay = timeOfDay;
+        }
+    }
+}
 //============================================================
 module.exports = Evo;
 

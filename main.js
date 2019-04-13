@@ -30,6 +30,9 @@ class EvoAdaptor extends utils.Adapter {
         this.on('stateChange', this.onStateChange);
         // this.on("message", this.onMessage);
         this.on('unload', this.onUnload);
+
+        this.setHandlers = {};
+        this.pfxlen = this.namespace.length+1;
     }
 
     /**
@@ -175,6 +178,7 @@ riable', {
                         ss("faults");
 
                         this.setState(sensor+"zone", { val: JSON.stringify(st), ack: true});
+                        this.setState(sensor+"schedule", { val: JSON.stringify(zn.$schedule), ack: true});
                     }
                 }
             }
@@ -182,15 +186,23 @@ riable', {
     }
     //----------------------------------------------------------------------------------------------
     async initObjects() {
-        
+        const that = this;
         for(let loc of this.evo.locations()) {
             await this.makeObj("device",loc.name());
+            await this.makeState( loc.name()+".cmd", "Command Point", "string", "json", 
+                                    function(cmd,id) { that.onLocationCommand(zn,cmd,id); }  
+                                    );
+
             for(let gw of loc.gateways) {
                 for(let cs of gw.systems()) {
                     let gsid = this.GSId(gw,cs);
                     let channel = loc.name() +gsid;
-                    if(gsid)
+                    if(gsid) {
                         await this.makeObj("channel",channel);
+                        await this.makeState( channel+".cmd", "Command Point", "string", "json", 
+                            function(cmd,id) { that.onLocationCommand(zn,cmd,id); }  
+                            );
+                    }
                     
                     for(let zn of cs._zones()) {
                         let sensor = channel+"."+zn.name;
@@ -198,11 +210,14 @@ riable', {
                         sensor += ".";
                         await this.makeState( sensor+"temperature", "temperature", "number", this.unit );
                         await this.makeState( sensor+"isAvailable", "isAvailable", "boolean" );
-                        await this.makeState( sensor+"setpoint", "setpoint", "number", this.unit, true );
+                        await this.makeState( sensor+"setpoint", "setpoint", "number", this.unit );
                         await this.makeState( sensor+"setpointMode", "setpointMode", "string"  );
                         await this.makeState( sensor+"faults", "faults", "string"  );
+                        await this.makeState( sensor+"schedule", "Zone Schedule", "string", "json"  );
                         await this.makeState( sensor+"zone", "Zone as JSON", "string", "json"  );
-                        await this.makeState( sensor+"zone_cmd", "Zone Command Point", "string", "json", true  );
+                        await this.makeState( sensor+"zone_cmd", "Zone Command Point", "string", "json", 
+                                                function(cmd,id) { that.onZoneCommand(zn,cmd,id); }  
+                                                );
                     }
                 }
             }
@@ -212,7 +227,7 @@ riable', {
     //--------------------------------------------------------------------
     async makeState(id, name, type, unit="",  wr=false, role="Value",) {
 
-        this.log.debug(`Making state ${id}` );
+        this.log.info(`Making state ${id}` );
         await this.setObjectNotExistsAsync(id, {
             type: "state",
             common: {
@@ -221,13 +236,36 @@ riable', {
                 role: role,
                 read: true,
                 unit: unit,
-                write: wr,
+                write: Boolean(wr),
             },
             native: {},
         });
+
+        if(wr) {
+            this.log.info(`Setting write handler for ${id}` );
+            this.subscribeStates(id);
+            this.setHandlers[id] = wr;
+        }
     }    
-    
-    
+        
+    //--------------------------------------------------------------------
+    async onLocationCommand(loc, state, id) {
+        this.log.info(`OnLocCmd ${id}`);
+        try {
+            await loc.doSystemCommand(state.val);
+        } catch(e) {
+            this.log.error(e);
+        }
+    }
+    //--------------------------------------------------------------------
+    async onZoneCommand(zn, state, id) {
+        this.log.info(`OnZoneCmd ${id}`);
+        try {
+            await zn.doZoneCommand(state.val);
+        } catch(e) {
+            this.log.error(e);
+        }
+    }
     //--------------------------------------------------------------------
     async makeObj(type, name) {
         this.log.debug(`Making ${type} ${name}` );
@@ -263,6 +301,7 @@ riable', {
         }
     }
 
+    //--------------------------------------------------------------------
     /**
      * Is called if a subscribed object changes
      * @param {string} id
@@ -278,21 +317,30 @@ riable', {
         }
     }
 
+    //--------------------------------------------------------------------
     /**
      * Is called if a subscribed state changes
      * @param {string} id
      * @param {ioBroker.State | null | undefined} state
      */
     onStateChange(id, state) {
+        
+        id = id.substr(this.pfxlen);
+
         if (state) {
             // The state was changed
-            this.log.info(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
+            const fn = this.setHandlers[id];
+            if(fn)
+                fn(state,id)
+            else
+                this.log.error(`State ${id} changed: ${state.val} (ack = ${state.ack}) - but no handler is registered!`);
         } else {
             // The state was deleted
             this.log.info(`state ${id} deleted`);
         }
     }
 
+    //--------------------------------------------------------------------
     // /**
     //  * Some message was sent to this instance over message box. Used by email, pushover, text2speech, ...
     //  * Using this method requires "common.message" property to be set to true in io-package.json
@@ -311,6 +359,7 @@ riable', {
     // }
 
 }
+//======================================================================
 
 if (module.parent) {
     // Export the constructor in compact mode
