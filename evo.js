@@ -613,7 +613,6 @@ class HeatZone extends ZoneBase {
      */
     async setTemperature(temperature, until) {
         const data = {
-                    "SetpointMode": "PermanentOverride",
                     "HeatSetpointValue": temperature
                     };
 
@@ -623,7 +622,10 @@ class HeatZone extends ZoneBase {
         }                    
 
         if(until) {
+            data.SetpointMode = "TemporaryOverride";
             data.TimeUntil = Evo.toDateTimeString(until);
+        } else {
+            data.SetpointMode = "PermanentOverride";
         }
 
         await this._setHeatSetpoint(data);        

@@ -38,7 +38,8 @@ vis.binds["evohome_zone"] = {
 
             var shortmodes =  {
                 "FollowSchedule":"Scheduled",
-                "PermanentOverride":"Override"
+                "PermanentOverride":"Perm Ovr",
+                "TemporaryOverride":"Temp Ovr"
                 };
 
             var sel_sp;
@@ -73,13 +74,17 @@ vis.binds["evohome_zone"] = {
             $('#' + widgetID).html(`
 <table width='100%' height='100%' class='vis_evohome_zone-table' style='background-color:#00ff00'>
 <tr><th> 
-    <span class='vis_evohome_zone-set' >&#9881;</span>            
     ${title}
     <span class='vis_evohome_zone-err' >&#9888;</span>
 </th></tr>
 <tr><td><span class='vis_evohome_zone-mv'></span></td></tr>
-<tr><td><span class='vis_evohome_zone-sp'></span></td></tr>
-<tr><td><span class='vis_evohome_zone-mode'></span> </td></tr>
+<tr><td>
+    <span class='vis_evohome_zone-sp'></span>
+</td></tr>
+<tr><td>
+    <span class='vis_evohome_zone-mode'></span> 
+    <span class='vis_evohome_zone-set' >&#9881;</span>            
+</td></tr>
 </table>
 <div id='${widgetID}-dialog' title='Zone ${title} control'>
     <form>
