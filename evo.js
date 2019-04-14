@@ -18,6 +18,7 @@
  */
 req = require('request-promise-native');
 assert = require("assert");
+sprintf = require("sprintf-js");
 
 HONEYWELL = 'https://tccna.honeywell.com/';
 APPID = '91db1612-73fd-4500-91b2-e63b069b185c';
@@ -45,7 +46,7 @@ class Evo {
         this.access_token_expires = undefined;
         this.system = undefined;
         this.label = "EVO";
-        
+        this.log = console;
     }
     //--------------------------------------------------------
     /**
@@ -511,7 +512,7 @@ class ZoneBase {
             isAvailable:  this.status.temperatureStatus.isAvailable,
             setpoint:     this.status.setpointStatus.targetHeatTemperature,
             setpointMode: this.status.setpointStatus.setpointMode,
-            faults:       JSON.stringify(this.status.activeFaults)
+            faults:       this.status.activeFaults
         };
     }
     //------------------------------------------------------------------
@@ -527,12 +528,14 @@ class ZoneBase {
         let headers = await this.$evo.headers(); 
         let uri = this.getURI()+"/schedule";
         console.log(`Schedule get ${uri}`);
-        this.$schedule = await req({
+        let schedule = await req({
             method:'GET',
             uri: uri,
             headers: headers,
             json: true
         });
+
+        this.$schedule = new DailySchedule(schedule);
 
         return this.$schedule;
     }
@@ -604,14 +607,25 @@ class HeatZone extends ZoneBase {
         }
     }
     //------------------------------------------------------------------
+    /**
+     * Set temperature override.
+     * @param {Number} temperature Temperature to set
+     * @param {Date?} until         Time to set till, undefined for perm or "next-switchpoint"
+     */
     async setTemperature(temperature, until) {
         const data = {
                     "SetpointMode": "PermanentOverride",
                     "HeatSetpointValue": temperature
                     };
 
-        if(until)
-                data.TimeUntil = Evo.toDateTimeString(until);
+        if(until=="next-switchpoint") {
+            let i = this.$schedule.iterator();
+            until = i.switchpointDateTime();
+        }                    
+
+        if(until) {
+            data.TimeUntil = Evo.toDateTimeString(until);
+        }
 
         await this._setHeatSetpoint(data);        
     }
@@ -620,7 +634,7 @@ class HeatZone extends ZoneBase {
     async _setHeatSetpoint(data) {
         const uri = this.getURI() + "/heatSetpoint";
         const headers = await this.$evo.headers(true);
-        console.log(uri, "<--", JSON.stringify(data) );
+        this.$evo.log.info(uri, "<--", JSON.stringify(data) );
         try
         {
             const status = await req({
@@ -661,12 +675,89 @@ class HeatZone extends ZoneBase {
 */
 
 //============================================================
+class ScheduleIterator {
+    constructor(sched, time) {
+        this.schedule = sched;
+        this.baseday = time.setHours(0,0,0,0);
+        let seconds = time.getHours()*3600
+                        + time.getMinutes()*60
+                        + time.getSeconds()
+                        ;
+
+        this.dow = (time.getDay()+6) % 7;  // js days start Sunday=0
+        this.index = 0;
+        this.dayoffset = 0;
+        this.invalid = false;
+        this.adjust();
+        while(this.dayoffset==0 && this.switchpoint().secondsInDay() < seconds)
+            this.next();
+    }
+
+    //-------------------------------------------------------------------------
+    adjust() {
+        let c =0;
+        while(!this.invalid) {
+            if(this.index < this.schedule.dailySchedules[this.dow].length)
+                return;
+
+            if(++c==8) {
+                this.invalid = true;
+                break;
+            }
+                
+
+            ++this.dayoffset;
+            ++this.dow;
+            if(this.dow>6)
+                this.dow=0;
+            this.index = 0;
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    /**
+     * Advance to next switchpoint
+     */
+    next() {
+        ++this.index;
+        this.adjust();
+    }
+
+    //-------------------------------------------------------------------------
+    /**
+     * Get current switchpoint
+     */
+    switchpoint() {
+        if(this.invalid) 
+            return undefined;
+
+        return this.schedule.dailySchedules[this.dow].switchpoints[this.index];
+    }
+
+    //-------------------------------------------------------------------------
+    /**
+     * get actual datetime of switchpoint
+     */
+    switchpointDateTime() {
+        if(this.invalid) 
+            return undefined;
+
+        let sp = this.switchpoint();
+        let dt = new Date(this.baseday.getTime());
+        dt.setDate( dt.getDate() + this.dayoffset);
+        dt.setSeconds(sp.secondsInDay());
+        return dt;
+    }
+    //-------------------------------------------------------------------------
+
+}
+//============================================================
 class DailySchedule {
     constructor(raw) {
         if(raw) {
             Object.assign(this, raw);
             for(let i=0; i<this.dailySchedules.length; ++i) {
-                this.dailySchedules[i] = new DailySchedule(this.dailySchedules[i]);
+                this.dailySchedules[i] = new DaySchedule(this.dailySchedules[i]);
             }
         } else {
             this.dailySchedules = [];
@@ -693,6 +784,14 @@ class DailySchedule {
             if(ixOrName.localeCompare(dsch.dayOfWeek, undefined, { sensitivity: 'base' }) === 0)
                 return dsch;
         }
+    }
+    //---------------------------------------------------------
+    /**
+     * Unbounded Iterate switchpoints starting at next one.
+     * @param {date} time 
+     */
+    iterator(time) {
+        return new ScheduleIterator(this, time || new Date());
     }
     //---------------------------------------------------------
 }
@@ -758,9 +857,24 @@ class HeatSwitchpoint {
         if(raw) {
             Object.assign(this, raw);
         } else {
-            this.heatSetpoint = value;
-            this.timeOfDay = timeOfDay;
+            this.heatSetpoint = value || 5.0;
+            this.timeOfDay = timeOfDay || "00:00:00";
         }
+    }
+
+    /**
+     * Set or Return switchpoint as number of seconds in the day
+     */
+    secondsInDay(set) {
+        if(set==undefined) {
+            let frags = this.timeOfDay.split(":");
+            return Number(frags[0])*3600 + Number(frags[1])*60+Number(frags[2]);
+        }
+        const sec = set % 60;
+        set = Math.floor(set/60);
+        const min = set % 60;
+        const hr = Math.floor(set/60);
+        this.timeOfDay = sprintf.sprintf("%02d:%02d:%02d", hr, min, sec);
     }
 }
 //============================================================

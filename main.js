@@ -48,6 +48,7 @@ class EvoAdaptor extends utils.Adapter {
             
             this.log.info(`Starting user=[${this.config.username}] pass=[${this.config.password}]`);
             this.evo = new Evo( this.config.username, this.config.password);
+            this.evo.log = this.log;
             
             let ms = (this.config.pollSeconds || POLL_MIN_S)*1000;
             if(ms<POLL_MIN_S*1000) {

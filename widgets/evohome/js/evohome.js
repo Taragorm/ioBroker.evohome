@@ -27,38 +27,6 @@ vis.binds["evohome_zone"] = {
     },
     
     //--------------------------------------------------------------------
-    /**
-    	Schedule lookup to shorten mode text - needs language support someday
-     */
-    shortModes : {
-	     "FollowSchedule":"Scheduled"
-	     
-    },
-    //--------------------------------------------------------------------
-    /**
-    	Update the HTML with live data.
-
-        @param ctx      Context object
-    	@param vjson	Value state as JSON
-     */
-    setValues: function(ctx, vjson) {
-        
-        //console.log("setvalues v=",vjson);
-        
-        const v = JSON.parse(vjson);
-        ctx.mv = v.temperature;
-        ctx.sp = v.setpoint;
-            
-        ctx.div.find('.vis_evohome_zone-mv').html( taragorm_common.format(ctx.fmt, ctx.mv) );
-        ctx.div.find('.vis_evohome_zone-sp').html( taragorm_common.format(ctx.fmt, ctx.sp) );
-                
-        var vect = taragorm_common.getColourVector(ctx.data.colours);
-        var mvcols = taragorm_common.getColours(ctx.mv, vect, ctx.data.interpolate);
-        var spbg = taragorm_common.getBackground(ctx.sp, vect, ctx.data.interpolate);
-        ctx.div.find('.vis_evohome_zone-table').css({ "background": "radial-gradient("+ mvcols.b+", "+ spbg + ")", "foreground-color": mvcols.f } );                            
-        ctx.div.find('.vis_evohome_zone-mode').html( this.shortModes[v.setpointMode] || v.setpointMode  ); 
-        //$div.find('.vis_evohome_zone-fault').html( v.faults.join()  ); 
-    },
     
     
     //--------------------------------------------------------------------
@@ -67,6 +35,20 @@ vis.binds["evohome_zone"] = {
      */
     createWidget: function (widgetID, view, data, style) {
         try {
+
+            var shortmodes =  {
+                "FollowSchedule":"Scheduled",
+                "PermanentOverride":"Override"
+                };
+
+            var sel_sp;
+            var mv;
+            var sp;
+            var mode;
+            var vect = taragorm_common.getColourVector(data.colours);
+            var fmt =  data.format || "%.1f &deg;C";
+            var zone_oid = data.zone_oid;
+
             var $div = $('#' + widgetID);
             // if nothing found => wait
             if (!$div.length) {
@@ -75,13 +57,6 @@ vis.binds["evohome_zone"] = {
                 }, 100);
             }
             
-            var ctx = { 
-                    "data": data, 
-                    "div": $div, 
-                    "fmt": data.format || "%.1f &deg;C"
-                };
-
-            $div.prop("$ctx",ctx);
 
             //console.log("Create mvsp");
     		var title = data.titleText.trim();
@@ -90,9 +65,9 @@ vis.binds["evohome_zone"] = {
     			title = frags[frags.length-2];
     		}
             
-    		var zone = data.zone_oid + ".val";
+    		var zone = zone_oid + ".val";
     
-            var text = `
+            $('#' + widgetID).html(`
 <table width='100%' height='100%' class='vis_evohome_zone-table' style='background-color:#00ff00'>
 <tr><th>${title}</th></tr>
 <tr><td><span class='vis_evohome_zone-mv'></span></td></th>
@@ -101,64 +76,74 @@ vis.binds["evohome_zone"] = {
 <tr><td><span class='vis_evohome_zone-fault'></span></td></th>
 </table>
 <div id='${widgetID}-dialog' title='Zone ${title} control'>
-    <div class="temp-slider">
-    <div class="custom-handle ui-slider-handle"></div>
-    </div> 
+    <form>
+    <fieldset>
+        <legend>Setpoint</legend>
+        <div class="temp-slider">
+        <div class="custom-handle ui-slider-handle"></div>
+        </div> 
+    </fieldset>    
+    <fieldset>
+        <legend>Duration </legend>
+        <input type="radio" name="duration" id="radio-ns" checked>
+        <label for="radio-ns">Next Switch</label>
+        <input type="radio" name="duration" id="radio-p">
+        <label for="radio-p">Forever</label>
+    </fieldset>    
     <a id='${widgetID}-apply'>Apply</a>
+    <a id='${widgetID}-cancel'>Cancel Ovr</a>
+    </form>
 </div>
-`;
-            
-            $('#' + widgetID).html(text);
+`);
+            var $table = $div.find('.vis_evohome_zone-table')
+            var $mv = $div.find('.vis_evohome_zone-mv');
+            var $sp = $div.find('.vis_evohome_zone-sp');
+            var $mode = $div.find('.vis_evohome_zone-mode');
+            var $fault = $div.find('.vis_evohome_zone-fault');
+            //$div.find("input:radio" ).checkboxradio();
 
-            function findId(id) { return $div.find("#"+widgetID+id); }
-
-            ctx.slider_handle = $div.find(".custom-handle");
-            ctx.temp_slider = $div.find(".temp-slider").slider({
+            var $slider_handle = $div.find(".custom-handle");
+            var $temp_slider = $div.find(".temp-slider").slider({
                 min: 10, max: 30, step: 0.5,
                 create: function() {
-                    ctx.slider_handle.text( $( this ).slider( "value" ) );
+                    $slider_handle.text( $( this ).slider( "value" ) );
                 },
-                change: function( event, ui ) {
-                    ctx.sel_sp = ui.value;
-                    ctx.slider_handle.text( ui.value );
-                },
-                slide: function( event, ui ) {
-                    ctx.sel_sp = ui.value;
-                    ctx.slider_handle.text( ui.value );
-                }
+                change: _onSlide,
+                slide: _onSlide
               });
 
 
-            findId("-apply")
-              .button()
-              .click( () => this._onApply(ctx) )
-              ;
+              findId("-apply")
+                .button()
+                .click( _onApply )
+                ;
 
-            ctx.dialog = findId("-dialog")
+              findId("-cancel")
+                .button()
+                .click( _onCancel )
+                ;
+
+            var $dialog = findId("-dialog")
                         .dialog({
                             autoOpen: false
                         });
 
             $div.find('.vis_evohome_zone-mode')
                         .button()
-                        .click( () => this._openModeDialog(ctx) )
+                        .click( _openModeDialog )
                         ;
 
-            this.setValues(
-                            ctx,
-                            vis.states[ zone ]
-                            );
+            setValues(vis.states[ zone ]);
             
-            let self = this;
             // subscribe on updates of values
             let bound = [];
             let handlers = [];
             
-            if(data.zone_oid) {
+            if(zone_oid) {
                 bound.push( zone );
                 handlers.push(this.setValues);
                 vis.states.bind(zone, function (e, newVal, oldVal) {
-                    self.setValues(ctx, newVal );
+                    setValues(newVal );
                 });                
             }
     
@@ -166,27 +151,105 @@ vis.binds["evohome_zone"] = {
                 $div.data('bound', bound);
                 $div.data('bindHandler', handlers);
             }
-            
-            //console.log("Set cmd");
-            //vis.setValue(data.zone_oid+"_cmd", '{ "command":"foo" }');
+
             
         } catch(ex) {
             console.error(ex);
         }
+
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // Local functions
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        /**
+            Update the HTML with live data.
+
+            @param ctx      Context object
+            @param vjson	Value state as JSON
+        */
+        function setValues(vjson) {
+            
+            //console.log("setvalues v=",vjson);
+            
+            const v = JSON.parse(vjson);
+            mv = v.temperature;
+            sp = v.setpoint;
+            mode = v.setpointMode;
+
+                
+            $mv.html( taragorm_common.format(fmt, mv) );
+            $sp.html( taragorm_common.format(fmt, sp) );
+                    
+            var mvcols = taragorm_common.getColours(mv, vect, data.interpolate);
+            var spbg = taragorm_common.getBackground(sp, vect, data.interpolate);
+            $table.css({ "background": "radial-gradient("+ mvcols.b+", "+ spbg + ")", "foreground-color": mvcols.f } );                            
+            $mode.html( shortmodes[mode] || mode  ); 
+            //console.log("faults=",v.faults, typeof v.faults);
+            $fault.html( v.faults ? v.faults.join() : "" ); 
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _openModeDialog () {
+            sel_sp = sp;
+            $temp_slider.slider("value", sp);
+            $dialog.dialog("open");
+        }    
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _getChecked(id) {
+            return $dialog.find(id).is(":checked");
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _onCancel() {
+            let data = {
+                "command":"CancelOverride",
+                "setpoint":sel_sp
+            };
+
+            vis.setValue(
+                zone_oid+"_cmd", 
+                JSON.stringify(data)
+                );
+
+            $dialog.dialog("close");
+            $mode.html("Pending"); 
+            }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _onApply() {
+
+            if( _getChecked("#radio-ns") ) {
+                var until = "next-switchpoint"; // special value driver will interpret
+            }
+
+            let data = {
+                "command":"Override",
+                "setpoint":sel_sp
+            };
+
+            if(until)
+                data.until = until;
+
+            console.log(`On ${zone_oid} OverTemp=${sel_sp} Apply Until= ${until}`);
+
+            vis.setValue(
+                zone_oid+"_cmd", 
+                JSON.stringify(data)
+                );
+
+            $dialog.dialog("close");
+            $mode.html("Pending"); 
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function findId(id) { 
+            return $div.find("#"+widgetID+id); 
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _onSlide ( event, ui ) {
+            sel_sp = ui.value;
+            $slider_handle.text( ui.value );        
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     },
     //--------------------------------------------------------------------
-    _onApply: function(ctx) {
-        vis.setValue(ctx.data.zone_oid+"_cmd", 
-            `{ "command":"Override", "setpoint":${ctx.sel_sp} }`
-            );
-        ctx.dialog.dialog("close");
-    },
     //--------------------------------------------------------------------
-    _openModeDialog: function(ctx) {
-        ctx.sel_sp = ctx.sp;
-        ctx.temp_slider.slider("value", ctx.sp);
-        ctx.dialog.dialog("open");
-    }
     //--------------------------------------------------------------------
     /*
     onIdChange: function (widgetID, view, newId, attr, isCss, oldValue) {

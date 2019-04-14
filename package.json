@@ -21,7 +21,8 @@
   "dependencies": {
     "@iobroker/adapter-core": "^1.0.3",
     "request": "^2.34",
-    "request-promise-native": "^1.0.5"
+    "request-promise-native": "^1.0.5",
+    "sprintf-js": "^1.1.2"
   },
   "devDependencies": {
     "@types/chai": "^4.1.7",
