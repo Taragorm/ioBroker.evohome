@@ -65,11 +65,11 @@ class Evo {
         if(!d || typeof d == "string")
             return d;
 
-        return d.roISOSTring();
+        return d.toISOString();
     }
     //--------------------------------------------------------
     /**
-     * Get an access token, and build our commen headers
+     * Get an access token, and build our common headers
      * @returns {nm$_evo.exports.basicLogin.resp|nm$_evo.Evo.basicLogin.resp}
      */
     async _basicLogin() {
@@ -436,8 +436,7 @@ class TemperatureControlSystem {
         }
             
         
-        let headers = await this.$evo.headers(); 
-        headers['Content-Type'] = 'application/json';
+        let headers = await this.$evo.headers(true); 
         
         let uri = HONEYWELL + `WebAPI/emea/api/v1/temperatureControlSystem/${this.$system.id()}/mode`;
         console.log(`Mode  put to ${uri}`);
@@ -535,7 +534,7 @@ class ZoneBase {
             json: true
         });
 
-        this.$schedule = new DailySchedule(schedule);
+        this.$schedule = new DailySchedule(schedule, this.$evo.log);
 
         return this.$schedule;
     }
@@ -546,7 +545,7 @@ class ZoneBase {
         headers['Content-Type'] = 'application/json';
         
         let uri = this.getURI()+"/schedule";
-        console.log(`Scedule Put ${uri}`);
+        this.$evo.log.info(`Schedule Put ${uri}`);
         this.$status = await req({
             method:'PUT',
             uri: uri,
@@ -634,7 +633,7 @@ class HeatZone extends ZoneBase {
     async _setHeatSetpoint(data) {
         const uri = this.getURI() + "/heatSetpoint";
         const headers = await this.$evo.headers(true);
-        this.$evo.log.info(uri, "<--", JSON.stringify(data) );
+        this.$evo.log.info(`${JSON.stringify(data)} >>  ${uri}` );
         try
         {
             const status = await req({
@@ -676,18 +675,22 @@ class HeatZone extends ZoneBase {
 
 //============================================================
 class ScheduleIterator {
-    constructor(sched, time) {
+    constructor(sched, atime, log) {
+        let time = new Date(atime.getTime());
         this.schedule = sched;
-        this.baseday = time.setHours(0,0,0,0);
         let seconds = time.getHours()*3600
                         + time.getMinutes()*60
                         + time.getSeconds()
                         ;
 
+        this.baseday = new Date(atime.getTime());
+        this.baseday.setHours(0,0,0,0);
+
         this.dow = (time.getDay()+6) % 7;  // js days start Sunday=0
         this.index = 0;
         this.dayoffset = 0;
         this.invalid = false;
+        this.$log = log;
         this.adjust();
         while(this.dayoffset==0 && this.switchpoint().secondsInDay() < seconds)
             this.next();
@@ -697,11 +700,14 @@ class ScheduleIterator {
     adjust() {
         let c =0;
         while(!this.invalid) {
-            if(this.index < this.schedule.dailySchedules[this.dow].length)
+            //this.$log.info(`adj dow=${this.dow} ix=${this.index} of ${this.schedule.dailySchedules[this.dow].switchpoints.length}`);
+
+            if(this.index < this.schedule.dailySchedules[this.dow].switchpoints.length)
                 return;
 
             if(++c==8) {
                 this.invalid = true;
+                throw Error("No schedule found!");
                 break;
             }
                 
@@ -753,7 +759,8 @@ class ScheduleIterator {
 }
 //============================================================
 class DailySchedule {
-    constructor(raw) {
+    constructor(raw, log) {
+        this.$log = log;
         if(raw) {
             Object.assign(this, raw);
             for(let i=0; i<this.dailySchedules.length; ++i) {
@@ -791,7 +798,7 @@ class DailySchedule {
      * @param {date} time 
      */
     iterator(time) {
-        return new ScheduleIterator(this, time || new Date());
+        return new ScheduleIterator(this, time || new Date(), this.$log);
     }
     //---------------------------------------------------------
 }

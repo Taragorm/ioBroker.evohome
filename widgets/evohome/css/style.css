@@ -29,7 +29,28 @@ table.vis_evohome_zone-table  {
  font-size: 80%;
 }
 
-.vis_evohome_zone-fault {
- font-size: 80%;
- color: red;
+.vis_evohome_zone-set {
+    cursor: pointer;
+}
+
+.vis_evohome_zone-err {
+    cursor: pointer;
+    background:white;
+    color:red;
+}
+
+a:link.noul {
+    text-decoration: none;
+}
+
+a:visited.noul {
+    text-decoration: none;
+}
+
+a:hover.noul {
+    text-decoration: underline;
+}
+
+a:active.noul {
+    text-decoration: underline;
 }

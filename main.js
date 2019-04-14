@@ -228,7 +228,7 @@ riable', {
     //--------------------------------------------------------------------
     async makeState(id, name, type, unit="",  wr=false, role="Value",) {
 
-        this.log.info(`Making state ${id}` );
+        //this.log.info(`Making state ${id}` );
         await this.setObjectNotExistsAsync(id, {
             type: "state",
             common: {
@@ -243,7 +243,7 @@ riable', {
         });
 
         if(wr) {
-            this.log.info(`Setting write handler for ${id}` );
+            //this.log.info(`Setting write handler for ${id}` );
             this.subscribeStates(id);
             this.setHandlers[id] = wr;
         }
@@ -251,7 +251,7 @@ riable', {
         
     //--------------------------------------------------------------------
     async onLocationCommand(loc, state, id) {
-        this.log.info(`OnLocCmd ${id}`);
+        this.log.info(`OnLocCmd ${id} = ${state.val}`);
         try {
             await loc.doSystemCommand(state.val);
         } catch(e) {
@@ -260,7 +260,7 @@ riable', {
     }
     //--------------------------------------------------------------------
     async onZoneCommand(zn, state, id) {
-        this.log.info(`OnZoneCmd ${id}`);
+        this.log.info(`OnZoneCmd ${id} = ${state.val}`);
         try {
             await zn.doZoneCommand(state.val);
         } catch(e) {

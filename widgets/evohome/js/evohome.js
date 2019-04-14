@@ -45,9 +45,12 @@ vis.binds["evohome_zone"] = {
             var mv;
             var sp;
             var mode;
+            var faults;
+            var available;
             var vect = taragorm_common.getColourVector(data.colours);
             var fmt =  data.format || "%.1f &deg;C";
             var zone_oid = data.zone_oid;
+            var interpolate = data.interpolate;
 
             var $div = $('#' + widgetID);
             // if nothing found => wait
@@ -66,14 +69,17 @@ vis.binds["evohome_zone"] = {
     		}
             
     		var zone = zone_oid + ".val";
-    
+            
             $('#' + widgetID).html(`
 <table width='100%' height='100%' class='vis_evohome_zone-table' style='background-color:#00ff00'>
-<tr><th>${title}</th></tr>
-<tr><td><span class='vis_evohome_zone-mv'></span></td></th>
-<tr><td><span class='vis_evohome_zone-sp'></span></td></th>
-<tr><td><a class='vis_evohome_zone-mode'></a></td></th>
-<tr><td><span class='vis_evohome_zone-fault'></span></td></th>
+<tr><th> 
+    <span class='vis_evohome_zone-set' >&#9881;</span>            
+    ${title}
+    <span class='vis_evohome_zone-err' >&#9888;</span>
+</th></tr>
+<tr><td><span class='vis_evohome_zone-mv'></span></td></tr>
+<tr><td><span class='vis_evohome_zone-sp'></span></td></tr>
+<tr><td><span class='vis_evohome_zone-mode'></span> </td></tr>
 </table>
 <div id='${widgetID}-dialog' title='Zone ${title} control'>
     <form>
@@ -94,11 +100,18 @@ vis.binds["evohome_zone"] = {
     <a id='${widgetID}-cancel'>Cancel Ovr</a>
     </form>
 </div>
+<div id='${widgetID}-err-dialog' title='Zone ${title} Errors'>
+<div>
 `);
             var $table = $div.find('.vis_evohome_zone-table')
             var $mv = $div.find('.vis_evohome_zone-mv');
             var $sp = $div.find('.vis_evohome_zone-sp');
+
             var $mode = $div.find('.vis_evohome_zone-mode');
+
+            $div.find(".vis_evohome_zone-set").click( _openModeDialog );
+
+            var $err = $div.find('.vis_evohome_zone-err').click( _openErrorDialog );
             var $fault = $div.find('.vis_evohome_zone-fault');
             //$div.find("input:radio" ).checkboxradio();
 
@@ -113,25 +126,28 @@ vis.binds["evohome_zone"] = {
               });
 
 
-              findId("-apply")
+            findId("-apply")
                 .button()
                 .click( _onApply )
                 ;
 
-              findId("-cancel")
+            findId("-cancel")
                 .button()
                 .click( _onCancel )
                 ;
 
             var $dialog = findId("-dialog")
-                        .dialog({
-                            autoOpen: false
-                        });
+                .dialog({
+                    autoOpen: false,
+                    modal:true
+                });
 
-            $div.find('.vis_evohome_zone-mode')
-                        .button()
-                        .click( _openModeDialog )
-                        ;
+            var $err_dialog = findId("-err-dialog")
+                .dialog({
+                    autoOpen: false,
+                    modal: true
+                });
+
 
             setValues(vis.states[ zone ]);
             
@@ -174,17 +190,32 @@ vis.binds["evohome_zone"] = {
             mv = v.temperature;
             sp = v.setpoint;
             mode = v.setpointMode;
-
+            faults = v.faults;
+            available = v.isAvailable;
                 
             $mv.html( taragorm_common.format(fmt, mv) );
             $sp.html( taragorm_common.format(fmt, sp) );
                     
-            var mvcols = taragorm_common.getColours(mv, vect, data.interpolate);
-            var spbg = taragorm_common.getBackground(sp, vect, data.interpolate);
+            var mvcols = taragorm_common.getColours(mv, vect, interpolate);
+            var spbg = taragorm_common.getBackground(sp, vect, interpolate);
             $table.css({ "background": "radial-gradient("+ mvcols.b+", "+ spbg + ")", "foreground-color": mvcols.f } );                            
             $mode.html( shortmodes[mode] || mode  ); 
+
+            if(available && faults.length==0)
+                $err.hide();
+            else
+                $err.show();
+
             //console.log("faults=",v.faults, typeof v.faults);
-            $fault.html( v.faults ? v.faults.join() : "" ); 
+            //$fault.html( v.faults ? v.faults.join() : "" ); 
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _openErrorDialog () {
+            $err_dialog.html(`
+<b>Available:</b> ${available}<br>
+<b>Faults:</b> ${faults ? faults.join() : ""}
+`);
+            $err_dialog.dialog("open");
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _openModeDialog () {
@@ -209,7 +240,7 @@ vis.binds["evohome_zone"] = {
                 );
 
             $dialog.dialog("close");
-            $mode.html("Pending"); 
+            $mode.html(mode = "Pending"); 
             }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _onApply() {
@@ -234,7 +265,7 @@ vis.binds["evohome_zone"] = {
                 );
 
             $dialog.dialog("close");
-            $mode.html("Pending"); 
+            $mode.html(mode = "Pending"); 
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function findId(id) { 
@@ -243,6 +274,8 @@ vis.binds["evohome_zone"] = {
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _onSlide ( event, ui ) {
             sel_sp = ui.value;
+            var col = taragorm_common.getColours(sel_sp, vect, interpolate);
+            $temp_slider.css("background", col.b);
             $slider_handle.text( ui.value );        
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
