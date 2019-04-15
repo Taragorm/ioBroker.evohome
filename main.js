@@ -49,6 +49,7 @@ class EvoAdaptor extends utils.Adapter {
             this.log.info(`Starting user=[${this.config.username}] pass=[${this.config.password}]`);
             this.evo = new Evo( this.config.username, this.config.password);
             this.evo.log = this.log;
+            this.evo.onCommand = (ev) => this.evoCommandSent(ev);
             
             let ms = (this.config.pollSeconds || POLL_MIN_S)*1000;
             if(ms<POLL_MIN_S*1000) {
@@ -115,7 +116,37 @@ riable', {
         //result = await this.checkGroupAsync('admin', 'admin');
         //this.log.info('check group user admin group admin: ' + result);
     }
+    //----------------------------------------------------------------------------------------------
+    //----------------------------------------------------------------------------------------------
+    /**
+     * Fired when a command is sent to the remote system.
+     * @param {*} ev 
+     */
+    async evoCommandSent(ev)
+    {
+        function sleepMs(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
 
+        switch(ev.cmd) {
+        
+        case "setheatsetpoint":
+            await sleepMs(4000);
+            this.log.info("Refresh due to set heat")
+            await this.mergeStatus(true);
+            break;
+
+        case "setmode":
+            await sleepMs(4000);
+            this.log.info("Refresh due to set mode")
+            await this.mergeStatus(true);
+            break;
+
+        case "setschedule":
+            default:
+                break;
+        }
+    }
     //----------------------------------------------------------------------------------------------
     GSId(gt,cs) {
         if(!this.config.simpleTree)
@@ -159,8 +190,8 @@ riable', {
 
     }
     //----------------------------------------------------------------------------------------------
-    async mergeStatus() {
-        await this.evo.getStatus();
+    async mergeStatus(quick) {
+        await this.evo.getStatus(quick);
         for(let loc of this.evo.locations()) {
             for(let gw of loc.gateways) {
                 for(let cs of gw.systems()) {
@@ -279,9 +310,7 @@ riable', {
             native: {},
         });
         //this.log.info("done");
-    }
-        
-    
+    }            
     //--------------------------------------------------------------------
     /**
      * Is called when adapter shuts down - callback has to be called under any circumstances!

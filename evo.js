@@ -9,10 +9,10 @@
  * - writing the system state
  * - Only heating zones supported [I don't have anything else to test vs]
  * - No Hot Water [ditto]
+ * - Writing setpoints
+ * - Reading schedules
  * 
  * Future:
- *  - Writing setpoints
- *  - Reading schedules
  *  - Writing schedules
  *  
  */
@@ -47,6 +47,11 @@ class Evo {
         this.system = undefined;
         this.label = "EVO";
         this.log = console;
+
+        /**
+         * async (event) when a command is sent
+         */
+        this.onCommand = undefined;
     }
     //--------------------------------------------------------
     /**
@@ -244,11 +249,12 @@ class Location  {
      * It may also set evo.structure_error if we encounter hardware in the
      * status that isn't known. We should re-init if this happens.
      * 
+     * @param {bool} quick - don't fetch schedules
      * @returns {unresolved}
      */
-    async getStatus() {
+    async getStatus(quick) {
         let uri = HONEYWELL + `WebApi/emea/api/v1/location/${this.locationInfo.locationId}/status?includeTemperatureControlSystems=True`;
-        console.log(`Status Fetch from ${uri}`);
+        //console.log(`Status Fetch from ${uri}`);
         this.$status = await req({
             method:'GET',
             uri: uri,
@@ -256,6 +262,7 @@ class Location  {
             json: true
         });
         
+        //this.$evo.log.info(JSON.stringify(this.$status));
         //
         // merge the status into installation data
         for(let gws of this.$status.gateways) {
@@ -283,7 +290,8 @@ class Location  {
                     }
                     z.status = zs; // note no $ prefix
 
-                    await z.getSchedule();
+                    if(!quick)
+                        await z.getSchedule();
                 }
             }
         }
@@ -439,13 +447,19 @@ class TemperatureControlSystem {
         let headers = await this.$evo.headers(true); 
         
         let uri = HONEYWELL + `WebAPI/emea/api/v1/temperatureControlSystem/${this.$system.id()}/mode`;
-        console.log(`Mode  put to ${uri}`);
+        //console.log(`Mode  put to ${uri}`);
         this.$status = await req({
             method:'PUT',
             uri: uri,
             headers: headers,
             json: body
         });
+
+        if(this.$evo.onCommand) await this.$evo.onCommand({
+            "cmd":"setmode", 
+            "until":until, 
+            "system": this
+        })
     }
     //------------------------------------------------------------------
     /**
@@ -511,6 +525,7 @@ class ZoneBase {
             isAvailable:  this.status.temperatureStatus.isAvailable,
             setpoint:     this.status.setpointStatus.targetHeatTemperature,
             setpointMode: this.status.setpointStatus.setpointMode,
+            until:        this.status.setpointStatus.until,
             faults:       this.status.activeFaults
         };
     }
@@ -553,6 +568,11 @@ class ZoneBase {
             json: schedule
         });
         
+        if(this.$evo.onCommand) await this.$evo.onCommand({
+            "cmd":"setschedule", 
+            "zone": this
+        })
+
     }
     //------------------------------------------------------------------
     /**
@@ -644,9 +664,18 @@ class HeatZone extends ZoneBase {
                 headers: headers,
                 json: data
             });
+
+            if(this.$evo.onCommand) await this.$evo.onCommand({
+                "cmd":  "setheatsetpoint", 
+                "mode": data.SetpointMode,
+                "until": data.TimeUntil, 
+                "zone": this
+            })
+    
         } catch(e) {
             throw Error( `PUT failed to ${uri} reason=${e}\n data=${JSON.stringify(data)}\n hdr=${headers}` )
         }
+
     }
     //------------------------------------------------------------------
     async cancelTemperatureOverride() {
