@@ -48,6 +48,7 @@ vis.binds["evohome_zone"] = {
             var mode;
             var faults;
             var available;
+            var ovr_until;
             var vect = taragorm_common.getColourVector(data.colours);
             var fmt =  data.format || "%.1f &deg;C";
             var zone_oid = data.zone_oid;
@@ -89,6 +90,10 @@ vis.binds["evohome_zone"] = {
 <div id='${widgetID}-dialog' title='Zone ${title} control'>
     <form>
     <fieldset>
+        <legend>Status</legend>
+        <div id='status'> </div>
+    </fieldset>    
+    <fieldset>
         <legend>Setpoint</legend>
         <div class="temp-slider">
         <div class="custom-handle ui-slider-handle"></div>
@@ -126,7 +131,6 @@ vis.binds["evohome_zone"] = {
             $div.find(".vis_evohome_zone-set").click( _openModeDialog );
 
             var $err = $div.find('.vis_evohome_zone-err').click( _openErrorDialog );
-            var $fault = $div.find('.vis_evohome_zone-fault');
             //$div.find("input:radio" ).checkboxradio();
 
             $('input[type=radio][name=duration]').change(_durationRadioChange);
@@ -156,7 +160,8 @@ vis.binds["evohome_zone"] = {
             var $dialog = findId("-dialog")
                 .dialog({
                     autoOpen: false,
-                    modal:true
+                    modal:true,
+                    width:"auto"
                 });
 
             var $err_dialog = findId("-err-dialog")
@@ -212,6 +217,7 @@ vis.binds["evohome_zone"] = {
             mode = v.setpointMode;
             faults = v.faults;
             available = v.isAvailable;
+            ovr_until = v.until;
                 
             $mv.html( taragorm_common.format(fmt, mv) );
             $sp.html( taragorm_common.format(fmt, sp) );
@@ -243,8 +249,8 @@ vis.binds["evohome_zone"] = {
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _openErrorDialog () {
             $err_dialog.html(`
-<b>Available:</b> ${available}<br>
-<b>Faults:</b> ${faults ? faults.join() : ""}
+<b>Available: </b> ${available}<br>
+<b>Faults: </b> ${faults ? faults.join() : ""}
 `);
             $err_dialog.dialog("open");
         }
@@ -252,6 +258,13 @@ vis.binds["evohome_zone"] = {
         function _openModeDialog () {
             sel_sp = sp;
             $temp_slider.slider("value", sp);
+            let st = [];
+            st.push(`<b>Mode:</b> ${mode}`);
+            if(ovr_until)
+                st.push(`<br><b>Until:</b> ${ovr_until}`);
+
+            $dialog.find("#status").html(st.join(""));
+
             $dialog.dialog("open");
         }    
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
