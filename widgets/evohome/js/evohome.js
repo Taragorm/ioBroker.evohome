@@ -95,11 +95,20 @@ vis.binds["evohome_zone"] = {
         </div> 
     </fieldset>    
     <fieldset>
-        <legend>Duration </legend>
-        <input type="radio" name="duration" id="radio-ns" checked>
+        <legend>Override Until </legend>
+        <input type="radio" name="duration" id="radio-ns" value="ns" checked>
         <label for="radio-ns">Next Switch</label>
-        <input type="radio" name="duration" id="radio-p">
+        <input type="radio" name="duration" id="radio-r" value="r">
+        <label for="radio-r">Duration</label>
+        <input type="radio" name="duration" id="radio-p" value="p">
         <label for="radio-p">Forever</label>
+    </fieldset>    
+    <fieldset id='duration'>
+        <legend>Duration </legend>
+        <label for="hrs">Hours</label>
+        <input id="hrs" name="value" size="3" value="1">
+        <label for="mins">Mins</label>
+        <input id="mins" name="value" size="3" value="0">                
     </fieldset>    
     <a id='${widgetID}-apply'>Apply</a>
     <a id='${widgetID}-cancel'>Cancel Ovr</a>
@@ -119,6 +128,8 @@ vis.binds["evohome_zone"] = {
             var $err = $div.find('.vis_evohome_zone-err').click( _openErrorDialog );
             var $fault = $div.find('.vis_evohome_zone-fault');
             //$div.find("input:radio" ).checkboxradio();
+
+            $('input[type=radio][name=duration]').change(_durationRadioChange);
 
             var $slider_handle = $div.find(".custom-handle");
             var $temp_slider = $div.find(".temp-slider").slider({
@@ -141,6 +152,7 @@ vis.binds["evohome_zone"] = {
                 .click( _onCancel )
                 ;
 
+
             var $dialog = findId("-dialog")
                 .dialog({
                     autoOpen: false,
@@ -153,6 +165,9 @@ vis.binds["evohome_zone"] = {
                     modal: true
                 });
 
+            $dialog.find('#duration').hide();
+            $dialog.find('#hrs').spinner({min:0});
+            $dialog.find('#mins').spinner({min:0, step:10});
 
             setValues(vis.states[ zone ]);
             
@@ -215,6 +230,17 @@ vis.binds["evohome_zone"] = {
             //$fault.html( v.faults ? v.faults.join() : "" ); 
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _durationRadioChange() {
+            // use this.value
+            var $dur = $dialog.find('#duration');
+            if(this.value=="r") {
+                // relative
+                $dur.show();    
+            } else {
+                $dur.hide();    
+            }
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _openErrorDialog () {
             $err_dialog.html(`
 <b>Available:</b> ${available}<br>
@@ -249,9 +275,28 @@ vis.binds["evohome_zone"] = {
             }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _onApply() {
+            let rbs = $dialog.find('input[name=duration]:checked').val();
 
-            if( _getChecked("#radio-ns") ) {
-                var until = "next-switchpoint"; // special value driver will interpret
+            var until;
+            switch(rbs)
+            {
+                case "ns":
+                    until = "next-switchpoint";
+                    break;
+
+                case "r":
+                    var d1 = new Date ();
+                    var until = new Date ( d1 );
+                    var h = $dialog.find('#hrs').spinner("value");
+                    var m = $dialog.find('#mins').spinner("value");
+                    until.setHours ( d1.getHours() + h );                
+                    until.setMinutes ( d1.getMinutes() + m );                
+                    //console.log(`h=${h} m=${m} until=${until}`);
+                    break;
+
+                default:
+                case "p":
+                    break;
             }
 
             let data = {
@@ -262,12 +307,9 @@ vis.binds["evohome_zone"] = {
             if(until)
                 data.until = until;
 
-            console.log(`On ${zone_oid} OverTemp=${sel_sp} Apply Until= ${until}`);
+            //console.log(`On ${zone_oid} OverTemp=${sel_sp} Apply Until= ${until}`);
 
-            vis.setValue(
-                zone_oid+"_cmd", 
-                JSON.stringify(data)
-                );
+            vis.setValue( zone_oid+"_cmd", JSON.stringify(data));
 
             $dialog.dialog("close");
             $mode.html(mode = "Pending"); 
