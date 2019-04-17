@@ -8,7 +8,6 @@
  * - reading the status
  * - writing the system state
  * - Only heating zones supported [I don't have anything else to test vs]
- * - No Hot Water [ditto]
  * - Writing setpoints
  * - Reading schedules
  * 

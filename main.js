@@ -190,13 +190,19 @@ riable', {
 
     }
     //----------------------------------------------------------------------------------------------
+    /**
+     * Move the evo data to iob
+     * @param {boolean} quick   Don't get schedules
+     */
     async mergeStatus(quick) {
         await this.evo.getStatus(quick);
         for(let loc of this.evo.locations()) {
+
             for(let gw of loc.gateways) {
                 for(let cs of gw.systems()) {
                     let gsid = this.GSId(gw,cs);
                     let channel = loc.name()+gsid;
+
                     for(let zn of cs._zones()) {
                         let sensor = channel+"."+zn.name+".";
                         let st = zn.state();
@@ -212,25 +218,85 @@ riable', {
                         this.setState(sensor+"zone", { val: JSON.stringify(st), ack: true});
                         this.setState(sensor+"schedule", { val: JSON.stringify(zn.$schedule), ack: true});
                     }
+
+                    if(gsid) { 
+                        // multiple systems
+                        this._makeSystemStatus(channel, cs);
+                    } else {
+                        // single system
+                        this._makeSystemStatus(loc.name(), cs);
+                    }
+
                 }
             }
         }
     }
     //----------------------------------------------------------------------------------------------
+    /**
+     * Create and write an evo system status to iobroker
+     * @param {string} iobref   Place to write IOB status (actually the object under the status)
+     * @param {*} evosys        EVO system node
+     */
+    _makeSystemStatus(iobref, evosys)
+    {
+        let zunav = [];
+        let zflt = [];
+        let znsched = [];
+
+        for(let z of evosys._zones()) {
+            if(z.status)
+            {
+                if(!z.status.temperatureStatus.isAvailable)
+                    zunav.push(z.name);
+
+                if(z.status.activeFaults.length>0)
+                    zflt.push(z.name);
+
+                if(z.status.setpointStatus.setpointMode != "FollowSchedule")
+                    znsched.push(z.name);
+            }    
+        }
+
+        let status = {
+            "mode": evosys.$status.systemModeStatus.mode,
+            "isPermanent": evosys.$status.systemModeStatus.isPermanent,
+            "until": evosys.$status.systemModeStatus.until,
+            "sysfaults": evosys.$status.activeFaults,
+            "zn_unavail": zunav,
+            "zn_fault": zflt,
+            "zn_notsched": znsched
+        };
+
+        let ss = JSON.stringify(status);
+        this.log.info(`Writing status ${iobref+".status"} as ${ss}`);
+        this.setState(iobref+".status", { val: ss, ack: true});
+    }
+    //----------------------------------------------------------------------------------------------    
+    /**
+     * Create iob objects and states
+     */
     async initObjects() {
         const that = this;
         for(let loc of this.evo.locations()) {
             await this.makeObj("device",loc.name());
-            await this.makeState( loc.name()+".cmd", "Command Point", "string", "json", 
+
+            if(this.config.simpleTree) {
+                // single system 
+                await this.makeState( loc.name()+".cmd", "Command Point", "string", "json", 
                                     function(cmd,id) { that.onLocationCommand(zn,cmd,id); }  
                                     );
+
+                await this.makeState( loc.name()+".status", "System status", "string", "json"  );
+            }
 
             for(let gw of loc.gateways) {
                 for(let cs of gw.systems()) {
                     let gsid = this.GSId(gw,cs);
                     let channel = loc.name() +gsid;
                     if(gsid) {
+                        // we have more than one system
                         await this.makeObj("channel",channel);
+                        await this.makeState( channel+".status", "System status", "string", "json"  );
                         await this.makeState( channel+".cmd", "Command Point", "string", "json", 
                             function(cmd,id) { that.onLocationCommand(zn,cmd,id); }  
                             );
