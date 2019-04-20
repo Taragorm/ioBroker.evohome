@@ -59,12 +59,17 @@ class EvoAdaptor extends utils.Adapter {
                 this.config.pollSeconds = POLL_MIN_S;
                 this.log.warn(`Poll rate too fast; set to ${POLL_MIN_S}s`);
             }
-            
-            this.log.info(`Starting poll at ${ms}ms`);
-            this.timer = setInterval( () => this.tick(), ms );
-            
+
+
+            await this.makeState( "errmsg", "Error Message", "string", ""  );
+            await this.makeState( "error", "Error State", "boolean", ""  );
+            await this.setErrorMessage("Initialising");
+
             this.needConnect = "Init";
-            this.tick();
+            this.log.info(`Starting poll at ${ms}ms`);
+            this.poll_promise = this.poller(ms);  // not awaited...
+            //this.timer = setInterval( () => this.tick(), ms );
+           // this.tick();
             
         } catch(ex) {
           this.log.error(ex.stack);  
@@ -119,26 +124,32 @@ riable', {
         //this.log.info('check group user admin group admin: ' + result);
     }
     //----------------------------------------------------------------------------------------------
+    async setErrorMessage(msg){
+        await this.setStateAsync("errmsg",  { val: msg, ack: true} );
+        await this.setStateAsync("error",  { val: Boolean(msg), ack: true} );
+    }
+    //----------------------------------------------------------------------------------------------
+    sleepMs(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    //----------------------------------------------------------------------------------------------
     /**
      * Fired when a command is sent to the remote system.
      * @param {*} ev 
      */
     async evoCommandSent(ev)
     {
-        function sleepMs(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
 
         switch(ev.cmd) {
         
         case "setheatsetpoint":
-            await sleepMs(4000);
+            await this.sleepMs(4000);
             this.log.info("Refresh due to set heat")
             await this.mergeStatus(true);
             break;
 
         case "setmode":
-            await sleepMs(4000);
+            await this.sleepMs(4000);
             this.log.info("Refresh due to set mode")
             await this.mergeStatus(true);
             break;
@@ -160,22 +171,23 @@ riable', {
         return "";
     }    
     //----------------------------------------------------------------------------------------------
-    /**
-     * Cyclic call here - polls evohome..
-     */
-    tick() {
-        //this.log.info("Polling");
-        this.work()
-            .catch( (err) => { 
+    async poller(ms) {
+        for(;;) {
+            try {
+                //this.log.info("polling");
+                await this.work();
+                await this.setErrorMessage("");
+                //this.log.info("...done");
+            } catch(err) {
                 this.writeErrorStates( err.message || "Undefined" );
                 this.log.error(err.stack); 
                 this.needConnect = "Worker Error:" + err;
-            })
-            ;
-        
-        //this.log.info("Done Polling");
+            }
+            //this.log.info("...sleep");
+            await this.sleepMs(ms);
+            //this.log.info("...wake");
+        }
     }
-    
     //----------------------------------------------------------------------------------------------
     /**
      * Walk over all our state points, and set an additional "error" property.
@@ -200,14 +212,21 @@ riable', {
         "_id": "shed.0.state.relay"
     },
  */        
+        this.log.info(`Checking states for statuses`);
+        await this.setErrorMessage(msg);
         let states = await this.getStatesOfAsync();
         for (const strec of states) {
+            this.log.info(`Checking state ${strec._id}`);
             if(strec._id.endsWith(".state") || strec._id.endsWith(".zone")){
                 let id = strec._id.substr(this.pfxlen);
+                this.log.info(` ...reading ${id}`);
                 let vs = await this.getStateAsync(id);
-                let v = JSON.parse(vs);
+                this.log.info(` ...got ${vs.val}`);
+                let v = JSON.parse(vs.val);
                 v.error = msg;
-                await this.setStateAsync(id,  { val: JSON.stringify(v), ack: true} );
+                let ws = JSON.stringify(v);
+                this.log.info(`... for ${id} writing back ${ws}`);
+                await this.setStateAsync(id,  { val: ws, ack: true} );
             }
         }
     }
@@ -231,7 +250,6 @@ riable', {
             await this.initObjects();
             // catch the update next time...
         }
-
     }
     //----------------------------------------------------------------------------------------------
     /**
@@ -429,8 +447,8 @@ riable', {
     onUnload(callback) {
         
         if(this.timer) {
-            clearInterval(this.timer);
-            this.timer = undefined;
+            //clearInterval(this.timer);
+            //this.timer = undefined;
         }
         
         try {

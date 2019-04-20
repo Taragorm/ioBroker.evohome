@@ -64,7 +64,7 @@ vis.binds["evohome_zone"] = {
             
 
             //console.log("Create mvsp");
-    		var title = data.titleText.trim();
+    		var title = data.titleText ? data.titleText.trim() : undefined;
     		if(!title) {
     			let frags = data.zone_oid.split(".");
     			title = frags[frags.length-2];
@@ -398,9 +398,9 @@ vis.binds["evohome_system"] = {
             
 
             //console.log("Create mvsp");
-    		var title = data.titleText.trim();
+    		var title = data.titleText ? data.titleText.trim() : undefined;
     		if(!title) {
-    			let frags = data.zone_oid.split(".");
+    			let frags = sys_oid.split(".");
     			title = frags[frags.length-2];
     		}
 
