@@ -6,7 +6,7 @@
     "name": "Taragorm",
     "email": "taragorm@zoho.eu"
   },
-  "homepage": "https://github.com/Taragorm/ioBroker.evohome",
+  "homepage": "https://github.com/Taragorm/iobroker.evohome",
   "license": "MIT",
   "keywords": [
     "ioBroker",
@@ -16,7 +16,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Taragorm/ioBroker.evohome"
+    "url": "https://github.com/Taragorm/iobroker.evohome"
   },
   "dependencies": {
     "@iobroker/adapter-core": "^1.0.3",
@@ -53,7 +53,7 @@
     "lint:js": "eslint"
   },
   "bugs": {
-    "url": "https://github.com/Author/ioBroker.evohome/issues"
+    "url": "https://github.com/Author/iobroker.evohome/issues"
   },
   "readmeFilename": "README.md"
 }

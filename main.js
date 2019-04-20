@@ -17,6 +17,7 @@ const POLL_MIN_S = 60;
 
 class EvoAdaptor extends utils.Adapter {
 
+    //----------------------------------------------------------------------------------------------
     /**
      * @param {Partial<ioBroker.AdapterOptions>} [options={}]
      */
@@ -35,6 +36,7 @@ class EvoAdaptor extends utils.Adapter {
         this.pfxlen = this.namespace.length+1;
     }
 
+    //----------------------------------------------------------------------------------------------
     /**
      * Is called when databases are connected and adapter received configuration.
      */
@@ -117,7 +119,6 @@ riable', {
         //this.log.info('check group user admin group admin: ' + result);
     }
     //----------------------------------------------------------------------------------------------
-    //----------------------------------------------------------------------------------------------
     /**
      * Fired when a command is sent to the remote system.
      * @param {*} ev 
@@ -148,12 +149,16 @@ riable', {
         }
     }
     //----------------------------------------------------------------------------------------------
+    /**
+     * Create a combined gateway/Control sysyem id
+     * @param {gateway} gt 
+     * @param {controlSystem} cs 
+     */
     GSId(gt,cs) {
         if(!this.config.simpleTree)
             return "." + gt.id() + "-" + cs.id();
         return "";
-    }
-    
+    }    
     //----------------------------------------------------------------------------------------------
     /**
      * Cyclic call here - polls evohome..
@@ -162,6 +167,7 @@ riable', {
         //this.log.info("Polling");
         this.work()
             .catch( (err) => { 
+                this.writeErrorStates( err.message || "Undefined" );
                 this.log.error(err.stack); 
                 this.needConnect = "Worker Error:" + err;
             })
@@ -171,6 +177,44 @@ riable', {
     }
     
     //----------------------------------------------------------------------------------------------
+    /**
+     * Walk over all our state points, and set an additional "error" property.
+     * @param {string} msg 
+     */
+    async writeErrorStates(msg)
+    {
+/*
+    {
+        "type": "state",
+        "common": {
+            "name": "Laser Operational",
+            "type": "boolean",
+            "role": "Value",
+            "read": true,
+            "unit": "",
+            "write": true
+        },
+        "native": {},
+        "from": "system.adapter.shed.0",
+        "ts": 1553252313931,
+        "_id": "shed.0.state.relay"
+    },
+ */        
+        let states = await this.getStatesOfAsync();
+        for (const strec of states) {
+            if(strec._id.endsWith(".state") || strec._id.endsWith(".zone")){
+                let id = strec._id.substr(this.pfxlen);
+                let vs = await this.getStateAsync(id);
+                let v = JSON.parse(vs);
+                v.error = msg;
+                await this.setStateAsync(id,  { val: JSON.stringify(v), ack: true} );
+            }
+        }
+    }
+    //----------------------------------------------------------------------------------------------
+    /**
+     * Main cyclic work task
+     */
     async work() {
         if(this.needConnect) {
             this.log.info(`(Re)Connect due to ${this.needConnect}`);

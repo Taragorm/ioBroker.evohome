@@ -182,7 +182,7 @@ vis.binds["evohome_zone"] = {
             
             if(zone_oid) {
                 bound.push( zone );
-                handlers.push(this.setValues);
+                handlers.push(setValues);
                 vis.states.bind(zone, function (e, newVal, oldVal) {
                     setValues(newVal );
                 });                
@@ -209,9 +209,15 @@ vis.binds["evohome_zone"] = {
         */
         function setValues(vjson) {
             
-            //console.log("setvalues v=",vjson);
-            
+            //console.log("setvalues v=",vjson);            
             const v = JSON.parse(vjson);
+
+            if(v.error) {
+                $mode.html( v.error ); 
+                $table.css("background","magenta");
+                return;
+            }
+
             mv = v.temperature;
             sp = v.setpoint;
             mode = v.setpointMode;
@@ -356,7 +362,233 @@ vis.binds["evohome_zone"] = {
     */
     //--------------------------------------------------------------------
 };
+//===================================================================================
+/**
+ * Widget to provide a view of overall status, and a place to make 
+ * global commands.
+ */
+vis.binds["evohome_system"] = {
+    version: "0.0.1",
+    
+    showVersion: function () {
+        if (vis.binds["evohome_system"].version) {
+            console.log('Version evohome_system: ' + vis.binds["evohome_system"].version);
+            vis.binds["evohome_system"].version = null;
+        }
+    },
+    
+    //--------------------------------------------------------------------
+    
+    
+    //--------------------------------------------------------------------
+    /**
+    	Widget creation factory
+     */
+    createWidget: function (widgetID, view, data, style) {
+        try {
+            var sys_oid = data.sys_oid;            
+            var $div = $('#' + widgetID);
+
+            // if nothing found => wait
+            if (!$div.length) {
+                return setTimeout(function () {
+                    vis.binds["evohome_system"].createWidget(widgetID, view, data, style);
+                }, 100);
+            }
+            
+
+            //console.log("Create mvsp");
+    		var title = data.titleText.trim();
+    		if(!title) {
+    			let frags = data.zone_oid.split(".");
+    			title = frags[frags.length-2];
+    		}
+
+            $('#' + widgetID).html(`
+            <table width='100%' height='100%' class='vis_evohome_sys-table' style='background-color:#00ff00'>
+            <tr><th> 
+                ${title}
+                <span class='vis_evohome_sys-err' >&#9888;</span>
+            </th></tr>
+            <tr><td>
+                <span class='vis_evohome_sys-mode'></span> 
+                <span class='vis_evohome_sys-set' >&#9881;</span>            
+            </td></tr>
+            </table>
+            <div id='${widgetID}-dialog' title='System ${title} control'>
+                <form>
+                <fieldset>
+                    <legend>Status</legend>
+                    <div id='status'> </div>
+                </fieldset>    
+                <fieldset>
+                    <legend>Override Until </legend>
+                    <input type="radio" name="duration" id="radio-ns" value="ns" checked>
+                    <label for="radio-ns">Next Switch</label>
+                    <input type="radio" name="duration" id="radio-r" value="r">
+                    <label for="radio-r">Duration</label>
+                    <input type="radio" name="duration" id="radio-p" value="p">
+                    <label for="radio-p">Forever</label>
+                </fieldset>    
+                <fieldset id='duration'>
+                    <legend>Duration </legend>
+                    <label for="hrs">Hours</label>
+                    <input id="hrs" name="value" size="3" value="1">
+                    <label for="mins">Mins</label>
+                    <input id="mins" name="value" size="3" value="0">                
+                </fieldset>    
+                <a id='${widgetID}-apply'>Apply</a>
+                <a id='${widgetID}-cancel'>Cancel Ovr</a>
+                </form>
+            </div>
+            <div id='${widgetID}-err-dialog' title='Zone ${title} Errors'>
+            <div>
+            `);
+            
+            var $table = $div.find('.vis_evohome_sys-table')
+            var $mode = $div.find('.vis_evohome_sys-mode');
+
+            $div.find(".vis_evohome_sys-set").click( _openModeDialog );
+
+            var $err = $div.find('.vis_evohome_sys-err').click( _openErrorDialog );
+            //$div.find("input:radio" ).checkboxradio();
+
+            $('input[type=radio][name=duration]').change(_durationRadioChange);
+
+
+            findId("-apply")
+                .button()
+                .click( _onApply )
+                ;
+
+            findId("-cancel")
+                .button()
+                .click( _onCancel )
+                ;
+
+
+            var $dialog = findId("-dialog")
+                .dialog({
+                    autoOpen: false,
+                    modal:true,
+                    width:"auto"
+                });
+
+            var $err_dialog = findId("-err-dialog")
+                .dialog({
+                    autoOpen: false,
+                    modal: true
+                });
+
+            $dialog.find('#duration').hide();
+            $dialog.find('#hrs').spinner({min:0});
+            $dialog.find('#mins').spinner({min:0, step:10});
+
+            _setValue(vis.states[ sys_oid +".val"]);
+            
+            // subscribe on updates of values
+            let bound = [];
+            let handlers = [];
+            
+            if(sys_oid) {
+                bound.push( sys_oid +".val" );
+                handlers.push(_setValue);
+                vis.states.bind(sys_oid +".val", function (e, newVal, oldVal) {
+                    _setValue(newVal );
+                });                
+            }
+    
+            if(bound.length) {
+                $div.data('bound', bound);
+                $div.data('bindHandler', handlers);
+            }
+
+        
+        } catch(ex) {
+            console.error(ex);
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // Local functions
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        /**
+         * Update state view according to JSON blob from the state signal.
+         * 
+         * @param {string} st Status JSON blob for whole system
+         */
+        function _setValue(stjson)
+        {
+            console.log(stjson);
+
+            let status = JSON.parse(stjson);
+            if(status.error) {
+                $mode.html( status.error ); 
+                $table.css("background","magenta");
+                return;
+            }
+
+
+            $mode.html(status.mode);
+            let color = "green";
+            if( status.sysfaults.length>0
+                || status.zn_unavail.length>0
+                || status.zn_fault.length > 0 
+                ) {
+                color = "red";
+            } else if(status.zn_notsched.length > 0) {
+                color ="yellow";
+            }
+
+            $table.css("background",color);
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _durationRadioChange() {
+            // use this.value
+            var $dur = $dialog.find('#duration');
+            if(this.value=="r") {
+                // relative
+                $dur.show();    
+            } else {
+                $dur.hide();    
+            }
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _openErrorDialog () {
+            $err_dialog.html(`
+<b>Available: </b> ${available}<br>
+<b>Faults: </b> ${faults ? faults.join() : ""}
+`);
+            $err_dialog.dialog("open");
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _openModeDialog () {
+            let st = [];
+            st.push(`<b>Mode:</b> ${mode}`);
+            if(ovr_until)
+                st.push(`<br><b>Until:</b> ${ovr_until}`);
+
+            $dialog.find("#status").html(st.join(""));
+
+            $dialog.dialog("open");
+        }    
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function findId(id) { 
+            return $div.find("#"+widgetID+id); 
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _onApply() {
+            // todo
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _onCancel() {
+            // todo
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    }
+}
+
+
 
 vis.binds["evohome_zone"].showVersion();
+vis.binds["evohome_system"].showVersion();
 
 

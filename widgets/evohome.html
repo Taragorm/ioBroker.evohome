@@ -116,4 +116,18 @@
 </script>
 
 
+<script id="tplEvohome_system"
+        type="text/ejs"
+        class="vis-tpl"
+        data-vis-prev='<div class="vis-taragorm-class"> <table style="background: #00cc00"><tr><th>Home</th></tr><tr><td> 25.4C </td></tr><tr><td> 15.0C </td></tr></div>'
+        data-vis-attrs="sys_oid/id,.status;titleText/text;"
+        data-vis-set="evohome"
+        data-vis-type="val"
+        data-vis-name="System" >
+    <div class="vis-widget <%== this.data.attr('class') %>" style="overflow:visible; width: 62px; height: 72px" id="<%= this.data.attr('wid') %>"><%
+        vis.binds.evohome_system.createWidget(this.data.wid, this.view, this.data, this.style);
+    %></div>
+</script>
+
+
 
