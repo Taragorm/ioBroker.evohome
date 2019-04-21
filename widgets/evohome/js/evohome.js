@@ -431,8 +431,6 @@ vis.binds["evohome_system"] = {
                     <legend>Override Until </legend>
                     <input type="radio" name="duration" id="radio-r" value="r" checked>
                     <label for="radio-r">Duration</label>
-                    <input type="radio" name="time" id="radio-a" value="a">
-                    <label for="radio-a">Time</label>
                     <input type="radio" name="duration" id="radio-p" value="p">
                     <label for="radio-p">Forever</label>
                 </fieldset>    
