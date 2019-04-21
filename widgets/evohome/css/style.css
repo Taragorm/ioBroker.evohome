@@ -3,37 +3,37 @@
     font-style: italic;
 }
 
-table.vis_evohome_zone-table  {
+table.vis_evohome-table  {
     border:solid black 1px;
     border-radius:6px;
 /*    padding: 3px; */
 }
 
-.vis_evohome_zone-table th {
+.vis_evohome-table th {
     text-align: center;
 }
 
-.vis_evohome_zone-table td {
+.vis_evohome-table td {
     text-align: center;
 }
 
-.vis_evohome_zone-mv {
+.vis_evohome-mv {
  font-weight: bold;
 }
 
-.vis_evohome_zone-sp {
+.vis_evohome-sp {
  font-size: 80%;
 }
 
-.vis_evohome_zone-mode {
+.vis_evohome-mode {
  font-size: 80%;
 }
 
-.vis_evohome_zone-set {
+.vis_evohome-set {
     cursor: pointer;
 }
 
-.vis_evohome_zone-err {
+.vis_evohome-err {
     cursor: pointer;
     background:white;
     color:red;

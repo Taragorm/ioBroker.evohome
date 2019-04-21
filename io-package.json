@@ -47,14 +47,14 @@
         "materialize": true,
         "materializeTab": true,
         "adminTab": {
-            "singleton": true,
+            "singleton": false,
             "name": {
                 "en": "Honeywell EvoHome cloud adaptor"
             },
             "link": "",
             "fa-icon": "info"
         },
-        "supportCustoms": true,
+        "supportCustoms": false,
         "dependencies": [
             {
                 "admin": ">=3.0.0"

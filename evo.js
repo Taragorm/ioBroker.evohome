@@ -332,8 +332,8 @@ class Location  {
             cmd = JSON.parse(cmd);
 
         for(let gw of this.gateways)
-            for(let cs of gw.zones)
-                await cs.doSystemCommand(cmdjson);
+            for(let cs of gw.temperatureControlSystems)
+                await cs.doSystemCommand(cmd);
     }
     //---------------------------------------------------------
 
@@ -430,22 +430,27 @@ class TemperatureControlSystem {
     //-------------------------------------------------
     /**
      * Set system mode
-     * @param {string} mode 
+     * @param {string} mode Mode to set: Auto, AutoWithReset, 
+     *                      Custom, AutoWithEco, Away, DayOff
+     *                      or HeatingOff
      * @param {time} until 
      */
     async setMode(mode, until) {
-        
+
         if(until) {
-            ft = `${until.getFullYear()}:${until.getMonth()}:${until.getDay()}T00:00:00Z`;
-            var body = { 'SystemMode':mode, "TimeUntil": ft, 'Permenant' : false };
+            if(until instanceof Date)
+                until = until.toUTCString();
+
+            //ft = `${until.getFullYear()}:${until.getMonth()}:${until.getDay()}T00:00:00Z`;
+            var body = { 'SystemMode':mode, "TimeUntil": until, 'Permanent' : false };
         } else {
-            var body = { 'SystemMode':mode, "TimeUntil": undefined, 'Permenant' : true }            
+            var body = { 'SystemMode':mode, 'Permanent' : true }            
         }
             
         
         let headers = await this.$evo.headers(true); 
         
-        let uri = HONEYWELL + `WebAPI/emea/api/v1/temperatureControlSystem/${this.$system.id()}/mode`;
+        let uri = HONEYWELL + `WebAPI/emea/api/v1/temperatureControlSystem/${this.id()}/mode`;
         //console.log(`Mode  put to ${uri}`);
         this.$status = await req({
             method:'PUT',

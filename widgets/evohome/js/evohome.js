@@ -73,18 +73,18 @@ vis.binds["evohome_zone"] = {
     		var zone = zone_oid + ".val";
             
             $('#' + widgetID).html(`
-<table width='100%' height='100%' class='vis_evohome_zone-table' style='background-color:#00ff00'>
+<table width='100%' height='100%' class='vis_evohome-table' style='background-color:#00ff00'>
 <tr><th> 
     ${title}
-    <span class='vis_evohome_zone-err' >&#9888;</span>
+    <span class='vis_evohome-err' >&#9888;</span>
 </th></tr>
-<tr><td><span class='vis_evohome_zone-mv'></span></td></tr>
+<tr><td><span class='vis_evohome-mv'></span></td></tr>
 <tr><td>
-    <span class='vis_evohome_zone-sp'></span>
+    <span class='vis_evohome-sp'></span>
 </td></tr>
 <tr><td>
-    <span class='vis_evohome_zone-mode'></span> 
-    <span class='vis_evohome_zone-set' >&#9881;</span>            
+    <span class='vis_evohome-mode'></span> 
+    <span class='vis_evohome-set' >&#9881; <span class="vis_evohome-timed">&#9203;</span></span>            
 </td></tr>
 </table>
 <div id='${widgetID}-dialog' title='Zone ${title} control'>
@@ -110,6 +110,8 @@ vis.binds["evohome_zone"] = {
     </fieldset>    
     <fieldset id='duration'>
         <legend>Duration </legend>
+        <label for="days">Days</label>
+        <input id="days" name="value" size="3" value="0">
         <label for="hrs">Hours</label>
         <input id="hrs" name="value" size="3" value="1">
         <label for="mins">Mins</label>
@@ -122,15 +124,17 @@ vis.binds["evohome_zone"] = {
 <div id='${widgetID}-err-dialog' title='Zone ${title} Errors'>
 <div>
 `);
-            var $table = $div.find('.vis_evohome_zone-table')
-            var $mv = $div.find('.vis_evohome_zone-mv');
-            var $sp = $div.find('.vis_evohome_zone-sp');
+            
+            var $table = $div.find('.vis_evohome-table')
+            var $timed = $div.find('.vis_evohome-timed')
+            var $mv = $div.find('.vis_evohome-mv');
+            var $sp = $div.find('.vis_evohome-sp');
 
-            var $mode = $div.find('.vis_evohome_zone-mode');
+            var $mode = $div.find('.vis_evohome-mode');
 
-            $div.find(".vis_evohome_zone-set").click( _openModeDialog );
+            $div.find(".vis_evohome-set").click( _openModeDialog );
 
-            var $err = $div.find('.vis_evohome_zone-err').click( _openErrorDialog );
+            var $err = $div.find('.vis_evohome-err').click( _openErrorDialog );
             //$div.find("input:radio" ).checkboxradio();
 
             $('input[type=radio][name=duration]').change(_durationRadioChange);
@@ -171,6 +175,7 @@ vis.binds["evohome_zone"] = {
                 });
 
             $dialog.find('#duration').hide();
+            $dialog.find('#days').spinner({min:0});
             $dialog.find('#hrs').spinner({min:0});
             $dialog.find('#mins').spinner({min:0, step:10});
 
@@ -209,8 +214,12 @@ vis.binds["evohome_zone"] = {
         */
         function setValues(vjson) {
             
-            //console.log("setvalues v=",vjson);            
-            const v = JSON.parse(vjson);
+            //console.log("setvalues v=",vjson);         
+            try {   
+                var v = JSON.parse(vjson);
+            } catch(ex) {
+                v = { "error":"BadData"};
+            }
 
             if(v.error) {
                 $mode.html( v.error ); 
@@ -233,10 +242,8 @@ vis.binds["evohome_zone"] = {
             $table.css({ "background": "radial-gradient("+ mvcols.b+", "+ spbg + ")", "foreground-color": mvcols.f } );                            
             $mode.html( shortmodes[mode] || mode  ); 
 
-            if(available && faults.length==0)
-                $err.hide();
-            else
-                $err.show();
+            if(available && faults.length==0) $err.hide(); else $err.show();
+            if(ovr_until) $timed.show(); else $timed.hide();
 
             //console.log("faults=",v.faults, typeof v.faults);
             //$fault.html( v.faults ? v.faults.join() : "" ); 
@@ -274,10 +281,6 @@ vis.binds["evohome_zone"] = {
             $dialog.dialog("open");
         }    
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        function _getChecked(id) {
-            return $dialog.find(id).is(":checked");
-        }
-        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _onCancel() {
             let data = {
                 "command":"CancelOverride",
@@ -306,8 +309,10 @@ vis.binds["evohome_zone"] = {
                 case "r":
                     var d1 = new Date ();
                     var until = new Date ( d1 );
+                    var d = $dialog.find('#days').spinner("value");
                     var h = $dialog.find('#hrs').spinner("value");
                     var m = $dialog.find('#mins').spinner("value");
+                    until.setDays ( d1.getDays() + d );                
                     until.setHours ( d1.getHours() + h );                
                     until.setMinutes ( d1.getMinutes() + m );                
                     //console.log(`h=${h} m=${m} until=${until}`);
@@ -388,6 +393,7 @@ vis.binds["evohome_system"] = {
         try {
             var sys_oid = data.sys_oid;            
             var $div = $('#' + widgetID);
+            var status = {};
 
             // if nothing found => wait
             if (!$div.length) {
@@ -405,14 +411,14 @@ vis.binds["evohome_system"] = {
     		}
 
             $('#' + widgetID).html(`
-            <table width='100%' height='100%' class='vis_evohome_sys-table' style='background-color:#00ff00'>
+            <table width='100%' height='100%' class='vis_evohome-table' style='background-color:#00ff00'>
             <tr><th> 
                 ${title}
-                <span class='vis_evohome_sys-err' >&#9888;</span>
+                <span class='vis_evohome-err' >&#9888;</span>
             </th></tr>
             <tr><td>
-                <span class='vis_evohome_sys-mode'></span> 
-                <span class='vis_evohome_sys-set' >&#9881;</span>            
+                <span class='vis_evohome-mode'></span> 
+                <span class='vis_evohome-set' >&#9881;<span class="vis_evohome-timed">&#9203;</span></span>            
             </td></tr>
             </table>
             <div id='${widgetID}-dialog' title='System ${title} control'>
@@ -423,49 +429,53 @@ vis.binds["evohome_system"] = {
                 </fieldset>    
                 <fieldset>
                     <legend>Override Until </legend>
-                    <input type="radio" name="duration" id="radio-ns" value="ns" checked>
-                    <label for="radio-ns">Next Switch</label>
-                    <input type="radio" name="duration" id="radio-r" value="r">
+                    <input type="radio" name="duration" id="radio-r" value="r" checked>
                     <label for="radio-r">Duration</label>
+                    <input type="radio" name="time" id="radio-a" value="a">
+                    <label for="radio-a">Time</label>
                     <input type="radio" name="duration" id="radio-p" value="p">
                     <label for="radio-p">Forever</label>
                 </fieldset>    
                 <fieldset id='duration'>
                     <legend>Duration </legend>
+                    <label for="days">Days</label>
+                    <input id="days" name="value" size="3" value="0">
                     <label for="hrs">Hours</label>
                     <input id="hrs" name="value" size="3" value="1">
                     <label for="mins">Mins</label>
                     <input id="mins" name="value" size="3" value="0">                
                 </fieldset>    
-                <a id='${widgetID}-apply'>Apply</a>
-                <a id='${widgetID}-cancel'>Cancel Ovr</a>
+                <a class="tara-cmd" name="Auto">Auto</a>
+                <a class="tara-cmd" name="AutoWithReset">Auto+Reset</a>
+                <a class="tara-cmd" name="Custom">Custom</a>
+                <a class="tara-cmd" name="AutoWithEco">Auto+Eco</a>
+                <a class="tara-cmd" name="Away">Away</a>
+                <a class="tara-cmd" name="DayOff">Day Off</a>
+                <a class="tara-cmd" name="HeatingOff">Heating Off</a>
+                <!-- <a id='${widgetID}-cancel'>Cancel Ovr</a> -->
                 </form>
             </div>
             <div id='${widgetID}-err-dialog' title='Zone ${title} Errors'>
             <div>
             `);
             
-            var $table = $div.find('.vis_evohome_sys-table')
-            var $mode = $div.find('.vis_evohome_sys-mode');
+            var $table = $div.find('.vis_evohome-table');
+            var $timed = $div.find('.vis_evohome-timed')
+            var $mode = $div.find('.vis_evohome-mode');
 
-            $div.find(".vis_evohome_sys-set").click( _openModeDialog );
+            $div.find(".vis_evohome-set").click( _openModeDialog );
 
-            var $err = $div.find('.vis_evohome_sys-err').click( _openErrorDialog );
+            var $err = $div.find('.vis_evohome-err').click( _openErrorDialog );
+
             //$div.find("input:radio" ).checkboxradio();
 
             $('input[type=radio][name=duration]').change(_durationRadioChange);
 
 
-            findId("-apply")
+            $div.find(".tara-cmd")
                 .button()
                 .click( _onApply )
                 ;
-
-            findId("-cancel")
-                .button()
-                .click( _onCancel )
-                ;
-
 
             var $dialog = findId("-dialog")
                 .dialog({
@@ -480,7 +490,8 @@ vis.binds["evohome_system"] = {
                     modal: true
                 });
 
-            $dialog.find('#duration').hide();
+            //$dialog.find('#duration').hide();
+            $dialog.find('#days').spinner({min:0});
             $dialog.find('#hrs').spinner({min:0});
             $dialog.find('#mins').spinner({min:0, step:10});
 
@@ -517,54 +528,92 @@ vis.binds["evohome_system"] = {
          */
         function _setValue(stjson)
         {
-            console.log(stjson);
+            //console.log(stjson);
 
-            let status = JSON.parse(stjson);
+            try {
+                status = JSON.parse(stjson);
+            }
+            catch(ex) {
+                status = {"error":"Bad Data"};
+            }
+
             if(status.error) {
                 $mode.html( status.error ); 
                 $table.css("background","magenta");
+                $err.show();
                 return;
             }
-
-
+            
             $mode.html(status.mode);
-            let color = "green";
+            let color = "gray";
+            let showerr = false;
             if( status.sysfaults.length>0
                 || status.zn_unavail.length>0
                 || status.zn_fault.length > 0 
                 ) {
                 color = "red";
+                showerr = true;
             } else if(status.zn_notsched.length > 0) {
                 color ="yellow";
+                showerr = true;
+            } else if(status.mode === "AutoWithEco" || status.mode === "Away" ) {
+                color = "darkgreen";
+            } else if(status.mode === "HeatingOff") {
+                color = "dodgerblue";
+            } else if(status.mode === "DayOff" || status.mode === "Custom") {
+                color = "mediumpurple";
+            } else {
+                color = "gray";
+            // Auto, Auto with reset 
             }
 
             $table.css("background",color);
+
+            if(showerr) $err.show(); else $err.hide();
+            if(status.until) $timed.show(); else $timed.hide();
+            
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _durationRadioChange() {
             // use this.value
             var $dur = $dialog.find('#duration');
-            if(this.value=="r") {
-                // relative
-                $dur.show();    
-            } else {
-                $dur.hide();    
+
+            switch(this.value) {
+                case "r":
+                    $dur.show();    
+                    break;
+
+                default:
+                    $dur.hide();    
+                    break;
             }
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _openErrorDialog () {
+
+            let sysf = status && status.sysfaults && status.sysfaults.join() || ""; 
+            let zunav = status && status.zn_unavail && status.zn_unavail.join() || "";
+            let zf = status && status.zn_fault && status.zn_fault.join() || "";
+            let zover = status && status.zn_notsched && status.zn_notsched.join() || "";
+
             $err_dialog.html(`
-<b>Available: </b> ${available}<br>
-<b>Faults: </b> ${faults ? faults.join() : ""}
+<table>            
+<tr><th>Comms <td> ${status.error || "OK"}
+<tr><th>Sys Mode: <td> ${status.mode} ${status.until ? " until "+status.until : ""}
+<tr><th>Sys Faults: <td> ${sysf} 
+<tr><th>Unavailable Zones: <td> ${zunav}
+<tr><th>Faulty Zones: <td> ${zf}
+<tr><th>Overidden Zones: <td> ${zover}
+</table>
 `);
             $err_dialog.dialog("open");
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _openModeDialog () {
             let st = [];
-            st.push(`<b>Mode:</b> ${mode}`);
-            if(ovr_until)
-                st.push(`<br><b>Until:</b> ${ovr_until}`);
+            st.push(`<b>Mode:</b> ${status.mode}`);
+            if(status.until)
+                st.push(`<br><b>Until:</b> ${status.until}`);
 
             $dialog.find("#status").html(st.join(""));
 
@@ -576,11 +625,45 @@ vis.binds["evohome_system"] = {
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _onApply() {
-            // todo
-        }
-        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        function _onCancel() {
-            // todo
+            //console.log(this.name);
+
+            let rbs = $dialog.find('input[name=duration]:checked').val();
+
+            var until;
+            switch(rbs)
+            {
+                case "r":
+                    var d1 = new Date ();
+                    var until = new Date ( d1 );
+                    var d = $dialog.find('#days').spinner("value");
+                    var h = $dialog.find('#hrs').spinner("value");
+                    var m = $dialog.find('#mins').spinner("value");
+                    until.setDays ( d1.getDays() + d );                
+                    until.setHours ( d1.getHours() + h );                
+                    until.setMinutes ( d1.getMinutes() + m );                
+                    //console.log(`h=${h} m=${m} until=${until}`);
+                    break;
+
+                default:
+                case "p":
+                    break;
+            }
+
+            let data = {
+                "command":"setmode",
+                "mode":this.name
+            };
+
+            if(until)
+                data.until = until;
+
+            //console.log(`On ${zone_oid} OverTemp=${sel_sp} Apply Until= ${until}`);
+            let cmd_oid = sys_oid.substring(0, sys_oid.lastIndexOf(".")) + ".cmd"
+            vis.setValue( cmd_oid, JSON.stringify(data));
+
+            $dialog.dialog("close");
+            $mode.html(status.mode = "Pending"); 
+            
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     }

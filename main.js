@@ -179,6 +179,13 @@ riable', {
                 await this.setErrorMessage("");
                 //this.log.info("...done");
             } catch(err) {
+                let msg=  err.message || "?ERROR?";
+                try {
+                    let o = JSON.parse(err.message);                    
+                    msg = o.error ? o.error : err.messare;
+                }
+                catch(ex) {}
+
                 this.writeErrorStates( err.message || "Undefined" );
                 this.log.error(err.stack); 
                 this.needConnect = "Worker Error:" + err;
@@ -322,7 +329,7 @@ riable', {
         let status = {
             "mode": evosys.$status.systemModeStatus.mode,
             "isPermanent": evosys.$status.systemModeStatus.isPermanent,
-            "until": evosys.$status.systemModeStatus.until,
+            "until": evosys.$status.systemModeStatus.timeUntil,
             "sysfaults": evosys.$status.activeFaults,
             "zn_unavail": zunav,
             "zn_fault": zflt,
@@ -330,7 +337,7 @@ riable', {
         };
 
         let ss = JSON.stringify(status);
-        this.log.info(`Writing status ${iobref+".status"} as ${ss}`);
+        //this.log.info(`Writing status ${iobref+".status"} as ${ss}`);
         this.setState(iobref+".status", { val: ss, ack: true});
     }
     //----------------------------------------------------------------------------------------------    
@@ -345,7 +352,7 @@ riable', {
             if(this.config.simpleTree) {
                 // single system 
                 await this.makeState( loc.name()+".cmd", "Command Point", "string", "json", 
-                                    function(cmd,id) { that.onLocationCommand(zn,cmd,id); }  
+                                    function(cmd,id) { that.onLocationCommand(loc,cmd,id); }  
                                     );
 
                 await this.makeState( loc.name()+".status", "System status", "string", "json"  );
@@ -414,7 +421,7 @@ riable', {
         try {
             await loc.doSystemCommand(state.val);
         } catch(e) {
-            this.log.error(e);
+            this.log.error(e.stack);
         }
     }
     //--------------------------------------------------------------------
@@ -423,7 +430,7 @@ riable', {
         try {
             await zn.doZoneCommand(state.val);
         } catch(e) {
-            this.log.error(e);
+            this.log.error(e.stack);
         }
     }
     //--------------------------------------------------------------------
