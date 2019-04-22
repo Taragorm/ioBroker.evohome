@@ -50,9 +50,14 @@ vis.binds["evohome_zone"] = {
             var available;
             var ovr_until;
             var vect = taragorm_common.getColourVector(data.colours);
-            var fmt =  data.format || "%.1f &deg;C";
             var zone_oid = data.zone_oid;
             var interpolate = data.interpolate;
+            var title_fmt =  data.titleFormat || "<span style='font-weight: bold;'>%s</span>";
+            var sp_fmt =  data.spFormat || "<span style='font-size: 80%%;'>%.1f &deg;C</span>";
+            var mv_fmt =  data.mvFormat || "<span style='font-weight: bold;'>%.1f &deg;C</span>";
+            var mode_fmt =  data.modeFormat || "<span style='font-size: 80%%;'>%s</span>";
+            let footer = data.footer ? `<tr><td>${data.footer}` : "";
+
 
             var $div = $('#' + widgetID);
             // if nothing found => wait
@@ -64,11 +69,8 @@ vis.binds["evohome_zone"] = {
             
 
             //console.log("Create mvsp");
-    		var title = data.titleText ? data.titleText.trim() : undefined;
-    		if(!title) {
-    			let frags = data.zone_oid.split(".");
-    			title = frags[frags.length-2];
-    		}
+            let frags = data.zone_oid.split(".");
+            let title = sprintf(title_fmt, frags[frags.length-2]);
             
     		var zone = zone_oid + ".val";
             
@@ -86,6 +88,7 @@ vis.binds["evohome_zone"] = {
     <span class='vis_evohome-mode'></span> 
     <span class='vis_evohome-set' >&#9881; <span class="vis_evohome-timed">&#9203;</span></span>            
 </td></tr>
+    ${footer}
 </table>
 <div id='${widgetID}-dialog' title='Zone ${title} control'>
     <form>
@@ -234,13 +237,13 @@ vis.binds["evohome_zone"] = {
             available = v.isAvailable;
             ovr_until = v.until;
                 
-            $mv.html( taragorm_common.format(fmt, mv) );
-            $sp.html( taragorm_common.format(fmt, sp) );
+            $mv.html( taragorm_common.format(mv_fmt, mv) );
+            $sp.html( taragorm_common.format(sp_fmt, sp) );
                     
             var mvcols = taragorm_common.getColours(mv, vect, interpolate);
             var spbg = taragorm_common.getBackground(sp, vect, interpolate);
             $table.css({ "background": "radial-gradient("+ mvcols.b+", "+ spbg + ")", "foreground-color": mvcols.f } );                            
-            $mode.html( shortmodes[mode] || mode  ); 
+            $mode.html( sprintf(mode_fmt, shortmodes[mode] || mode) ); 
 
             if(available && faults.length==0) $err.hide(); else $err.show();
             if(ovr_until) $timed.show(); else $timed.hide();
