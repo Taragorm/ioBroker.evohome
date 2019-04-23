@@ -17,7 +17,7 @@ $.get( "adapter/evohome/words.js", function(script) {
 
 
 vis.binds["evohome_zone"] = {
-    version: "0.0.1",
+    version: "0.0.2",
     
     showVersion: function () {
         if (vis.binds["evohome_zone"].version) {
@@ -53,6 +53,7 @@ vis.binds["evohome_zone"] = {
             var zone_oid = data.zone_oid;
             var interpolate = data.interpolate;
             var title_fmt =  data.titleFormat || "<span style='font-weight: bold;'>%s</span>";
+            var title =  data.titleText ? data.titleText.trim() : undefined;
             var sp_fmt =  data.spFormat || "<span style='font-size: 80%%;'>%.1f &deg;C</span>";
             var mv_fmt =  data.mvFormat || "<span style='font-weight: bold;'>%.1f &deg;C</span>";
             var mode_fmt =  data.modeFormat || "<span style='font-size: 80%%;'>%s</span>";
@@ -69,15 +70,20 @@ vis.binds["evohome_zone"] = {
             
 
             //console.log("Create mvsp");
-            let frags = data.zone_oid.split(".");
-            let title = sprintf(title_fmt, frags[frags.length-2]);
-            
+            if(!title) {
+                let frags = zone_oid.split(".");
+                title = frags[frags.length-2];
+            }
+        
+            let title_html = sprintf(title_fmt, title);
+
+
     		var zone = zone_oid + ".val";
             
             $('#' + widgetID).html(`
 <table width='100%' height='100%' class='vis_evohome-table' style='background-color:#00ff00'>
 <tr><th> 
-    ${title}
+    ${title_html}
     <span class='vis_evohome-err' >&#9888;</span>
 </th></tr>
 <tr><td><span class='vis_evohome-mv'></span></td></tr>
@@ -90,40 +96,62 @@ vis.binds["evohome_zone"] = {
 </td></tr>
     ${footer}
 </table>
+
 <div id='${widgetID}-dialog' title='Zone ${title} control'>
-    <form>
-    <fieldset>
-        <legend>Status</legend>
-        <div id='status'> </div>
-    </fieldset>    
-    <fieldset>
-        <legend>Setpoint</legend>
-        <div class="temp-slider">
-        <div class="custom-handle ui-slider-handle"></div>
-        </div> 
-    </fieldset>    
-    <fieldset>
-        <legend>Override Until </legend>
-        <input type="radio" name="duration" id="radio-ns" value="ns" checked>
-        <label for="radio-ns">Next Switch</label>
-        <input type="radio" name="duration" id="radio-r" value="r">
-        <label for="radio-r">Duration</label>
-        <input type="radio" name="duration" id="radio-p" value="p">
-        <label for="radio-p">Forever</label>
-    </fieldset>    
-    <fieldset id='duration'>
-        <legend>Duration </legend>
-        <label for="days">Days</label>
-        <input id="days" name="value" size="3" value="0">
-        <label for="hrs">Hours</label>
-        <input id="hrs" name="value" size="3" value="1">
-        <label for="mins">Mins</label>
-        <input id="mins" name="value" size="3" value="0">                
-    </fieldset>    
-    <a id='${widgetID}-apply'>Apply</a>
-    <a id='${widgetID}-cancel'>Cancel Ovr</a>
-    </form>
+    <div id="tabs">
+        <ul>
+            <li><a href="#settings">Settings</a>
+            <li><a href="#schedule">Schedule</a>
+        </ul>
+
+    <div id="settings"><form>
+        <fieldset>
+            <legend>Status</legend>
+            <div id='status'> </div>
+        </fieldset>    
+        <fieldset>
+            <legend>Setpoint</legend>
+            <div class="temp-slider"> <div class="custom-handle ui-slider-handle"> </div> </div> 
+        </fieldset>    
+        <fieldset>
+            <legend>Override Until </legend>
+            <input type="radio" name="duration" id="radio-ns" value="ns" checked>
+            <label for="radio-ns">Next Switch</label>
+            <input type="radio" name="duration" id="radio-r" value="r">
+            <label for="radio-r">Duration</label>
+            <input type="radio" name="duration" id="radio-p" value="p">
+            <label for="radio-p">Forever</label>
+        </fieldset>    
+        <fieldset id='duration'>
+            <legend>Duration </legend>
+            <label for="days">Days</label>
+            <input id="days" name="value" size="3" value="0">
+            <label for="hrs">Hours</label>
+            <input id="hrs" name="value" size="3" value="1">
+            <label for="mins">Mins</label>
+            <input id="mins" name="value" size="3" value="0">                
+        </fieldset>    
+        <br>
+        <a id='${widgetID}-apply'>Apply</a>
+        <a id='${widgetID}-cancel'>Cancel Ovr</a>
+    </form></div>
+
+    <div id="schedule"><form>
+        <select id="daysel">
+            <option id="day0" value='0'></option>
+            <option id="day1" value='1'></option>
+            <option id="day2" value='2'></option>
+            <option id="day3" value='3'></option>
+            <option id="day4" value='4'></option>
+            <option id="day5" value='5'></option>
+            <option id="day6" value='6'></option>
+        </select>
+        <fieldset id='sch-detail'> 
+        </fieldset>
+        <a id='addsch'>+</a>
+    </form></div>
 </div>
+
 <div id='${widgetID}-err-dialog' title='Zone ${title} Errors'>
 <div>
 `);
@@ -163,7 +191,6 @@ vis.binds["evohome_zone"] = {
                 .click( _onCancel )
                 ;
 
-
             var $dialog = findId("-dialog")
                 .dialog({
                     autoOpen: false,
@@ -181,6 +208,11 @@ vis.binds["evohome_zone"] = {
             $dialog.find('#days').spinner({min:0});
             $dialog.find('#hrs').spinner({min:0});
             $dialog.find('#mins').spinner({min:0, step:10});
+            $dialog.find("#tabs").tabs({
+                beforeActivate: _onTabSelect
+            });
+            $dialog.find("#addsch").button();
+            $dialog.find("#daysel").change(_swptDayChange);
 
             setValues(vis.states[ zone ]);
             
@@ -201,6 +233,7 @@ vis.binds["evohome_zone"] = {
                 $div.data('bindHandler', handlers);
             }
 
+            //this.
             
         } catch(ex) {
             console.error(ex);
@@ -353,7 +386,79 @@ vis.binds["evohome_zone"] = {
             $slider_handle.text( ui.value );        
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _onTabSelect(event,ui) {
+            console.log(ui.newPanel.attr('id'));
+            switch(ui.newPanel.attr('id')) {
+                case "schedule":
+                    if(!ui.newPanel.data("schedule")) {
+                        _loadSchedule();
+                    }
+                    break;
 
+                default:
+                    return;
+            }
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        /**
+         * Return OID for zone
+         */
+        function zoneRoot() {
+            return zone_oid.substring(0, zone_oid.lastIndexOf('.'));
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _loadSchedule() {
+            let url = `/get/${zoneRoot()}.schedule`;
+            //console.log(url)
+            $.ajax({
+                    url: url, 
+                    success: _gotSchedule
+              });            
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _gotSchedule(result) {
+            //console.log(result);
+            let sch =  JSON.parse(result.val);
+            let $sel = $dialog.find("#daysel").data("schedule", sch);
+            
+            for (let di=0; di<sch.dailySchedules.length; ++di ) {
+                const day = sch.dailySchedules[di];
+                let $opt=$sel.find("#day"+di).data("schedule", day);
+                $opt.html(day.dayOfWeek);
+            }
+            _loadDetailForDay(0);
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _loadDetailForDay(dno) {
+            console.log(dno);
+            let day =$dialog.find("#day"+dno).data("schedule");
+            let lst = [];
+            for (const swp of day.switchpoints) {
+                let l = "_"+swp.timeOfDay;
+                let clrs = taragorm_common.getColours( Number(swp.heatSetpoint), vect, interpolate);
+                lst.push(
+`<input type='radio' name='rad-swpt' value='${l}'> 
+<label for='${l}' style='width:100%;foreground-color:${clrs.f};background-color:${clrs.b}'>${swp.heatSetpoint}&deg;C ${swp.timeOfDay}</label><br>`
+                    );
+            }
+            $dialog.find("#sch-detail").html(lst.join("\n"));
+            $dialog.find('input[type=radio][name=rad-swpt]').change(_swptSelChange);
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _swptDayChange(event,ui) {
+            console.log("DayChange")
+            _loadDetailForDay(this.value);
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        /**
+         * Change handler for switchpoint selection.
+         * @param {*} event 
+         * @param {*} ui 
+         */
+        function _swptSelChange(event,ui) {
+            // todo
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     },
     //--------------------------------------------------------------------
     //--------------------------------------------------------------------
@@ -424,39 +529,46 @@ vis.binds["evohome_system"] = {
                 <span class='vis_evohome-set' >&#9881;<span class="vis_evohome-timed">&#9203;</span></span>            
             </td></tr>
             </table>
+
             <div id='${widgetID}-dialog' title='System ${title} control'>
-                <form>
-                <fieldset>
-                    <legend>Status</legend>
-                    <div id='status'> </div>
-                </fieldset>    
-                <fieldset>
-                    <legend>Override Until </legend>
-                    <input type="radio" name="duration" id="radio-r" value="r" checked>
-                    <label for="radio-r">Duration</label>
-                    <input type="radio" name="duration" id="radio-p" value="p">
-                    <label for="radio-p">Forever</label>
-                </fieldset>    
-                <fieldset id='duration'>
-                    <legend>Duration </legend>
-                    <label for="days">Days</label>
-                    <input id="days" name="value" size="3" value="0">
-                    <label for="hrs">Hours</label>
-                    <input id="hrs" name="value" size="3" value="1">
-                    <label for="mins">Mins</label>
-                    <input id="mins" name="value" size="3" value="0">                
-                </fieldset>    
-                <a class="tara-cmd" name="Auto">Auto</a>
-                <a class="tara-cmd" name="AutoWithReset">Auto+Reset</a>
-                <a class="tara-cmd" name="Custom">Custom</a>
-                <a class="tara-cmd" name="AutoWithEco">Auto+Eco</a>
-                <a class="tara-cmd" name="Away">Away</a>
-                <a class="tara-cmd" name="DayOff">Day Off</a>
-                <a class="tara-cmd" name="HeatingOff">Heating Off</a>
-                <!-- <a id='${widgetID}-cancel'>Cancel Ovr</a> -->
+
+                    <form id="settings">
+                    <fieldset>
+                        <legend>Status</legend>
+                        <div id='status'> </div>
+                    </fieldset>    
+                    <fieldset>
+                        <legend>Override Until </legend>
+                        <input type="radio" name="duration" id="radio-r" value="r" checked>
+                        <label for="radio-r">Duration</label>
+                        <input type="radio" name="duration" id="radio-p" value="p">
+                        <label for="radio-p">Forever</label>
+                    </fieldset>    
+                    <fieldset id='duration'>
+                        <legend>Duration </legend>
+                        <label for="days">Days</label>
+                        <input id="days" name="value" size="3" value="0">
+                        <label for="hrs">Hours</label>
+                        <input id="hrs" name="value" size="3" value="1">
+                        <label for="mins">Mins</label>
+                        <input id="mins" name="value" size="3" value="0">                
+                    </fieldset>    
+                    <a class="tara-cmd" name="Auto">Auto</a>
+                    <a class="tara-cmd" name="AutoWithReset">Auto+Reset</a>
+                    <a class="tara-cmd" name="Custom">Custom</a>
+                    <a class="tara-cmd" name="AutoWithEco">Auto+Eco</a>
+                    <a class="tara-cmd" name="Away">Away</a>
+                    <a class="tara-cmd" name="DayOff">Day Off</a>
+                    <a class="tara-cmd" name="HeatingOff">Heating Off</a>
+                    <!-- <a id='${widgetID}-cancel'>Cancel Ovr</a> -->
+                    </form>
+                </div>
+
+                <form id="schedule">
                 </form>
-            </div>
+
             <div id='${widgetID}-err-dialog' title='Zone ${title} Errors'>
+
             <div>
             `);
             
