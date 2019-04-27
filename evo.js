@@ -560,8 +560,7 @@ class ZoneBase {
     //------------------------------------------------------------------
     async setSchedule(schedule) {
 
-        let headers = await this.$evo.headers(); 
-        headers['Content-Type'] = 'application/json';
+        let headers = await this.$evo.headers(true); 
         
         let uri = this.getURI()+"/schedule";
         this.$evo.log.info(`Schedule Put ${uri}`);
@@ -588,7 +587,11 @@ class ZoneBase {
             cmd = JSON.parse(cmd);
 
         switch(cmd.command) {
-            // TODO 
+
+            case "SetSchedule":
+                await this.setSchedule(cmd.schedule);
+                break;
+
             default:
                 throw new Error(`Unsupported Zone command [${cmd.command}]`);
         }
@@ -619,7 +622,7 @@ class HeatZone extends ZoneBase {
             case "Override":
                 await this.setTemperature(cmd.setpoint, cmd.until);
                 break;
-6
+
             case "CancelOverride":
                 await this.cancelTemperatureOverride();
                 break;
@@ -682,7 +685,7 @@ class HeatZone extends ZoneBase {
 
     }
     //------------------------------------------------------------------
-    async cancelTemperatureOverride() {
+    async cancelTemperatureOverride(sch) {
         const data = {
                 "SetpointMode": "FollowSchedule",
                 "HeatSetpointValue": 0.0

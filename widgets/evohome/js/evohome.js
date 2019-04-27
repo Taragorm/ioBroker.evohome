@@ -58,6 +58,8 @@ vis.binds["evohome_zone"] = {
             var mv_fmt =  data.mvFormat || "<span style='font-weight: bold;'>%.1f &deg;C</span>";
             var mode_fmt =  data.modeFormat || "<span style='font-size: 80%%;'>%s</span>";
             let footer = data.footer ? `<tr><td>${data.footer}` : "";
+            var edit_sch_day;
+            var $edit_swpt;
 
 
             var $div = $('#' + widgetID);
@@ -92,10 +94,14 @@ vis.binds["evohome_zone"] = {
 </td></tr>
 <tr><td>
     <span class='vis_evohome-mode'></span> 
-    <span class='vis_evohome-set' >&#9881; <span class="vis_evohome-timed">&#9203;</span></span>            
+    <span class='vis_evohome-set' >&#9881; <span class="vis_evohome-timed">&#9203;&#xFE0E;</span></span>            
 </td></tr>
     ${footer}
 </table>
+
+<div id='${widgetID}-err-dialog' title='Zone ${title} Errors'> </div>
+
+<div id='query-dialog' title='Query'> </div>
 
 <div id='${widgetID}-dialog' title='Zone ${title} control'>
     <div id="tabs">
@@ -111,7 +117,7 @@ vis.binds["evohome_zone"] = {
         </fieldset>    
         <fieldset>
             <legend>Setpoint</legend>
-            <div class="temp-slider"> <div class="custom-handle ui-slider-handle"> </div> </div> 
+            <div id="sp-slider" class="temp-slider"> <div id="sp-slider-handle" class="ui-slider-handle custom-handle "> </div> </div> 
         </fieldset>    
         <fieldset>
             <legend>Override Until </legend>
@@ -137,7 +143,8 @@ vis.binds["evohome_zone"] = {
     </form></div>
 
     <div id="schedule"><form>
-        <select id="daysel">
+        <fieldset>
+            <select id="daysel">
             <option id="day0" value='0'></option>
             <option id="day1" value='1'></option>
             <option id="day2" value='2'></option>
@@ -145,15 +152,33 @@ vis.binds["evohome_zone"] = {
             <option id="day4" value='4'></option>
             <option id="day5" value='5'></option>
             <option id="day6" value='6'></option>
-        </select>
+            </select>
+        </fieldset>
+
         <fieldset id='sch-detail'> 
         </fieldset>
+
+        <div id="sch-edit">
+            <fieldset>
+                <legend>Setpoint</legend>
+                <div id="sch-slider" class="temp-slider"> <div id="sch-slider-handle" class="ui-slider-handle custom-handle"> </div> </div> 
+            </fieldset>
+
+            <fieldset id='Switchtime'>
+            <legend>Switchtime</legend>
+            <input id="sw-hrs" name="value" size="3" value="1">
+            <b>:</>
+            <input id="sw-mins" name="value" size="3" value="0">                
+            </fieldset>    
+        </div>
+        <a id='applysch'>Save</a>
         <a id='addsch'>+</a>
+        <a id="delsch">&#x1f5d1;</a>
+
     </form></div>
 </div>
 
-<div id='${widgetID}-err-dialog' title='Zone ${title} Errors'>
-<div>
+
 `);
             
             var $table = $div.find('.vis_evohome-table')
@@ -169,15 +194,24 @@ vis.binds["evohome_zone"] = {
             //$div.find("input:radio" ).checkboxradio();
 
             $('input[type=radio][name=duration]').change(_durationRadioChange);
-
-            var $slider_handle = $div.find(".custom-handle");
-            var $temp_slider = $div.find(".temp-slider").slider({
+            var $sp_slider_handle = $div.find("#sp-slider-handle");
+            var $sp_slider = $div.find("#sp-slider").slider({
                 min: 10, max: 30, step: 0.5,
                 create: function() {
-                    $slider_handle.text( $( this ).slider( "value" ) );
+                    $sp_slider_handle.text( fmtTemp($( this ).slider( "value" )) );
                 },
                 change: _onSlide,
                 slide: _onSlide
+              });
+
+              var $sch_slider_handle = $div.find("#sch-slider-handle");
+              var $sch_slider = $div.find("#sch-slider").slider({
+                min: 10, max: 30, step: 0.5,
+                create: function() {
+                    $sch_slider_handle.text( fmtTemp($( this ).slider( "value" )) );
+                },
+                change: _onSchSlide,
+                slide: _onSchSlide
               });
 
 
@@ -204,6 +238,14 @@ vis.binds["evohome_zone"] = {
                     modal: true
                 });
 
+            var $qdialog = $div.find("#query-dialog")
+                .dialog({
+                    autoOpen: false,
+                    modal:true,
+                    stack:true,
+                    width:"auto"
+                    });
+
             $dialog.find('#duration').hide();
             $dialog.find('#days').spinner({min:0});
             $dialog.find('#hrs').spinner({min:0});
@@ -211,8 +253,23 @@ vis.binds["evohome_zone"] = {
             $dialog.find("#tabs").tabs({
                 beforeActivate: _onTabSelect
             });
-            $dialog.find("#addsch").button();
             $dialog.find("#daysel").change(_swptDayChange);
+            $dialog.find('#sw-hrs').spinner({
+                        min:0, max:23,
+                        change: _chSwitchTime,
+                        stop: _chSwitchTime
+                        });
+
+            $dialog.find('#sw-mins').spinner({
+                        min:0, max:59, step:10,
+                        change: _chSwitchTime,
+                        stop: _chSwitchTime
+                        });
+
+            $dialog.find("#applysch").button().click(_schApply);
+            $dialog.find("#addsch").button().click(_schAdd);
+            $dialog.find("#delsch").button().click(_schDel);
+
 
             setValues(vis.states[ zone ]);
             
@@ -241,6 +298,10 @@ vis.binds["evohome_zone"] = {
 
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // Local functions
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function fmtTemp(t) {
+            return sprintf("%4.1f",t || 0);
+        }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         /**
             Update the HTML with live data.
@@ -306,7 +367,7 @@ vis.binds["evohome_zone"] = {
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _openModeDialog () {
             sel_sp = sp;
-            $temp_slider.slider("value", sp);
+            $sp_slider.slider("value", sp);
             let st = [];
             st.push(`<b>Mode:</b> ${mode}`);
             if(ovr_until)
@@ -382,12 +443,12 @@ vis.binds["evohome_zone"] = {
         function _onSlide ( event, ui ) {
             sel_sp = ui.value;
             var col = taragorm_common.getColours(sel_sp, vect, interpolate);
-            $temp_slider.css("background", col.b);
-            $slider_handle.text( ui.value );        
+            $sp_slider.css("background", col.b);
+            $sp_slider_handle.text( fmtTemp(ui.value) );        
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _onTabSelect(event,ui) {
-            console.log(ui.newPanel.attr('id'));
+            //console.log(ui.newPanel.attr('id'));
             switch(ui.newPanel.attr('id')) {
                 case "schedule":
                     if(!ui.newPanel.data("schedule")) {
@@ -430,19 +491,48 @@ vis.binds["evohome_zone"] = {
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _loadDetailForDay(dno) {
-            console.log(dno);
-            let day =$dialog.find("#day"+dno).data("schedule");
+            //console.log(dno);
+            edit_sch_day =$dialog.find("#day"+dno).data("schedule");
+            
+            _loadDetailForCurrentDay();
+
+             let $radio = $dialog.find("#swp_0");
+             $radio.prop("checked",true);
+             _swptSelChange(null,null,$radio);
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _loadDetailForCurrentDay(selswpt) {
             let lst = [];
-            for (const swp of day.switchpoints) {
-                let l = "_"+swp.timeOfDay;
+            let ix=0;
+            for (const swp of edit_sch_day.switchpoints) {
+                let checked = (selswpt===swp);
                 let clrs = taragorm_common.getColours( Number(swp.heatSetpoint), vect, interpolate);
                 lst.push(
-`<input type='radio' name='rad-swpt' value='${l}'> 
-<label for='${l}' style='width:100%;foreground-color:${clrs.f};background-color:${clrs.b}'>${swp.heatSetpoint}&deg;C ${swp.timeOfDay}</label><br>`
+`<input type='radio' name='rad-swpt' value='${swp.timeOfDay}' id='${"swp_"+ix}' ${checked ? "checked" : ""} > 
+<label id='${"lswp_"+ix}' for='${"swp_"+ix}' style='width:100%;foreground-color:${clrs.f};background-color:${clrs.b}'>${swp.timeOfDay} ${fmtTemp(swp.heatSetpoint)}&deg;C</label><br>`
                     );
+                ++ix;
             }
             $dialog.find("#sch-detail").html(lst.join("\n"));
             $dialog.find('input[type=radio][name=rad-swpt]').change(_swptSelChange);
+            ix=0;
+
+            // bind objects to HTML
+            $edit_swpt = undefined;
+
+            for (const swp of edit_sch_day.switchpoints) {
+                let $radio = $dialog.find('#swp_'+ix);
+                $radio.data("swp",swp);
+                if(selswpt===swp)
+                    $edit_swpt = $radio;
+                ++ix;
+            }
+
+            $dialog.find("#addsch").prop("disabled", edit_sch_day.switchpoints.length >= 6);
+
+            let none = edit_sch_day.switchpoints.length === 0;
+            $dialog.find("#delsch").prop("disabled", none);
+            $dialog.find("#sch-edit").prop("disabled", none);
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _swptDayChange(event,ui) {
@@ -455,11 +545,188 @@ vis.binds["evohome_zone"] = {
          * @param {*} event 
          * @param {*} ui 
          */
-        function _swptSelChange(event,ui) {
-            // todo
+        function _swptSelChange(event,ui, $radio) {
+            // use this.value
+            if(!$radio) 
+                $radio = $(this);
+
+            $edit_swpt = $radio;
+            var swp = $radio.data("swp");
+            //var $dur = $dialog.find('#duration');
+            $sch_slider.slider("value",swp.heatSetpoint);
+            let frags = swp.timeOfDay.split(':');
+            $dialog.find("#sw-hrs").spinner("value", Number(frags[0]) );
+            $dialog.find("#sw-mins").spinner("value", Number(frags[1]) );            
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    },
+        function _onSchSlide ( event, ui ) {
+            _updateSwitchpoint(ui.value,null);
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _chSwitchTime ( event, ui ) {
+            _updateSwitchpoint(
+                null,
+                sprintf(
+                    "%02d:%02d:00",
+                    $dialog.find('#sw-hrs').spinner("value"),
+                    $dialog.find('#sw-mins').spinner("value")
+                    )
+            );
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        /**
+         * Call this when one or both of the switchpoint values have been
+         * changed.
+         * 
+         * @param {Number} sp 
+         * @param {String} when 
+         */
+        function _updateSwitchpoint(sp,when)
+        {
+            //console.log(`Update ${sp} ${when}`);
+
+            var swp = $edit_swpt.data("swp");
+            if(sp==null) {
+                sp = swp.heatSetpoint;
+            } else {
+                var spchange = (sp != swp.heatSetpoint_);
+                swp.heatSetpoint = sp;
+            }
+
+            if(when==null) {
+                when = swp.timeOfDay;
+            } else {
+                var tchange = (when !== swp.timeOfDay );
+                swp.timeOfDay = when;
+            }
+
+            let lblid = "#l" + $edit_swpt.attr("id");
+            let fsp = fmtTemp(sp);
+            let txt = `${when} ${fsp}&deg;C`;
+            //console.log(lblid);            
+            let $lbl = $dialog.find(lblid).html(txt);
+
+            if(spchange) {
+                let col = taragorm_common.getColours(sp, vect, interpolate);
+                $lbl.css("background", col.b);
+                $sch_slider.css("background", col.b);
+                $sch_slider_handle.text( fsp );        
+            }
+
+            if(tchange) {
+                // might have to re-order
+                let swps = edit_sch_day.switchpoints;
+                let ix = swps.indexOf(swp);
+                if( (ix>0 && swps[ix-1].timeOfDay > when) 
+                    || (ix<(swps.length-1) && swps[ix+1].timeOfDay < when)
+                    ) {
+                    // force re-order
+                    swps.sort( (a,b) => a.timeOfDay.localeCompare(b.timeOfDay));
+                    _loadDetailForCurrentDay(swp);
+                }
+            }
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _schApply() {
+
+            let sch = $dialog.find("#daysel").data("schedule");
+            
+
+            $qdialog.dialog({
+                buttons: {
+                    "OK": _ok,
+                    "Cancel": () => { $qdialog.dialog("close"); }
+                }
+                });
+        
+            let lst = [];
+            lst.push("<b>Save To?</b><br>")
+            for (let di=0; di<sch.dailySchedules.length; ++di ) {
+                const day = sch.dailySchedules[di];
+                const dow = day.dayOfWeek;
+                //let $opt=$sel.find("#day"+di).data("schedule", day);
+                //$opt.html(day.dayOfWeek);
+                lst.push(`
+<input type="checkbox" id="${dow}" value="${dow}" ${edit_sch_day===day ? "checked disabled" : "" }>
+<label for="${dow}">${dow}</label><br>`
+                );
+
+            }
+
+            $qdialog.html(lst.join("")).dialog("open");
+
+            function _ok() {
+                // clone this days switchpoints
+                $qdialog.find('input:checked').each( (i,ob) => {
+                    let wdow = $(ob).val();
+                    let wday = sch.dailySchedules.find( (e) => e.dayOfWeek == wdow);
+                    if(wday !== edit_sch_day) {
+                        wday.switchpoints =  JSON.parse(JSON.stringify(edit_sch_day.switchpoints));
+                    }
+                });
+
+                // finally, send command to zone
+                let data = {
+                    "command":"SetSchedule",
+                    "schedule": sch
+                };
+        
+                vis.setValue( zone_oid+"_cmd", JSON.stringify(data));
+    
+                $qdialog.dialog("close");
+                $dialog.dialog("close");
+            }
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _schAdd() {
+            var nsw = {
+                "timeOfDay": "00:00:00",
+                "heatSetpoint": 21
+            };
+
+            edit_sch_day.switchpoints.unshift(nsw);
+            _loadDetailForCurrentDay(nsw);
+            let $radio = $dialog.find("#swp_0");
+            $radio.prop("checked",true);
+            _swptSelChange(null,null,$radio);
+       }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        function _schDel() {
+            //console.log("del", $qdialog, $dialog);
+            let $radio = $dialog.find('input[type=radio][name=rad-swpt]');
+            if(!$radio.length)
+                return;
+
+           $qdialog.dialog({
+                    buttons: {
+                        "OK": _ok,
+                        "Cancel": () => { $qdialog.dialog("close"); }
+                    }
+                    });
+
+            $qdialog.html("Really Delete?").dialog("open");
+
+            function _ok() {
+                let swp = $radio.data("swp");
+                let ix = edit_sch_day.switchpoints.indexOf(swp);
+                edit_sch_day.switchpoints.splice(ix,1);
+                if(ix >= edit_sch_day.switchpoints.length)
+                    ix = edit_sch_day.switchpoints.length -1;
+    
+                _loadDetailForCurrentDay(edit_sch_day.switchpoints[ix]);
+                if(ix >=0) {
+                    // we still have an entry
+                    let $radio = $dialog.find(`#swp_${ix}`);
+                    $radio.prop("checked",true);
+                    _swptSelChange(null,null,$radio);    
+                }     
+
+                $qdialog.dialog("close");
+            }
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    } // endCreateWidget()
     //--------------------------------------------------------------------
     //--------------------------------------------------------------------
     //--------------------------------------------------------------------
@@ -474,7 +741,7 @@ vis.binds["evohome_zone"] = {
     }
     */
     //--------------------------------------------------------------------
-};
+},
 //===================================================================================
 /**
  * Widget to provide a view of overall status, and a place to make 
@@ -526,7 +793,7 @@ vis.binds["evohome_system"] = {
             </th></tr>
             <tr><td>
                 <span class='vis_evohome-mode'></span> 
-                <span class='vis_evohome-set' >&#9881;<span class="vis_evohome-timed">&#9203;</span></span>            
+                <span class='vis_evohome-set' >&#9881;<span class="vis_evohome-timed">&#9203;&#xFE0E;</span></span>            
             </td></tr>
             </table>
 

@@ -43,3 +43,9 @@ a:hover.noul {
 a:active.noul {
     text-decoration: underline;
 }
+
+.custom-handle {
+    width: 4em !important;
+    text-align: center;
+}
+

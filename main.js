@@ -377,8 +377,11 @@ riable', {
                         sensor += ".";
                         await this.makeState( sensor+"temperature", "temperature", "number", this.unit );
                         await this.makeState( sensor+"isAvailable", "isAvailable", "boolean" );
-                        await this.makeState( sensor+"setpoint", "setpoint", "number", this.unit );
-                        await this.makeState( sensor+"setpointMode", "setpointMode", "string"  );
+                        await this.makeState( sensor+"force_setpoint", "Forced Setpoint", "number", this.unit,
+                                                function(cmd,id) { that.onForceSetpoint(zn,cmd,id); }  
+                                                );
+                        await this.makeState( sensor+"setpoint", "Current Setpoint", "number", this.unit );
+                        await this.makeState( sensor+"setpointMode", "Setpoint Mode", "string"  );
                         await this.makeState( sensor+"faults", "faults", "string"  );
                         await this.makeState( sensor+"schedule", "Zone Schedule", "string", "json"  );
                         await this.makeState( sensor+"zone", "Zone as JSON", "string", "json"  );
@@ -422,6 +425,20 @@ riable', {
             await loc.doSystemCommand(state.val);
         } catch(e) {
             this.log.error(e.stack);
+        }
+    }
+    //--------------------------------------------------------------------
+    async onForceSetpoint(zn, state, id) {
+        this.log.info(`onForceSetpoint ${id} = ${state.val}`);
+        if(state.val) {
+            await zn.doZoneCommand({
+                command: "Override",
+                setpoint: state.val
+                });
+        } else {
+            await zn.doZoneCommand({
+                command: "CancelOverride"
+                });
         }
     }
     //--------------------------------------------------------------------
