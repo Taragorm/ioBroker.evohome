@@ -69,7 +69,7 @@
         "username": "",
         "password": "",
         "pollSeconds": 120,
-        "simpleTree": false
+        "simpleTree": true
     },
     "objects": [],
     "instanceObjects": []

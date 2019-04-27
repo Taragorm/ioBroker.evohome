@@ -13,12 +13,12 @@
 **Tests:** Linux/Mac: [![Travis-CI](http://img.shields.io/travis/Taragorm/ioBroker.evohome/master.svg)](https://travis-ci.org/Author/ioBroker.evohome)
 Windows: [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/Taragorm/ioBroker.evohome?branch=master&svg=true)](https://ci.appveyor.com/project/Author/ioBroker-evohome/)
 
-## Honeywell EvoHome adapter for ioBroker
+# Honeywell EvoHome adapter for ioBroker
 
-Provide an adaptor which can connect to the Honeywell EvoHome cloud, usung the `emea` API, so might not work in the US.
+Provide an adaptor which can connect to the Honeywell EvoHome cloud, using the `emea` API, so might not work in the US.
 
 
-### Instance settings
+## Instance settings
 
 | Setting       |  Description      |
 |---------------|-------------------|
@@ -28,7 +28,7 @@ Provide an adaptor which can connect to the Honeywell EvoHome cloud, usung the `
 
 
 
-#### `simpleTree` setting.
+### The `simpleTree` setting.
 
 The data received from the cloud has a data structure like:
 
@@ -53,11 +53,152 @@ objects like:
 e.g.
 `Home/12345-6789/Kitchen`
 
-## Todo
+This is not very pretty, so if you have a single Evohome system, you should probably check the box.
 
-* Writable system modes
-* Custom Widgets
-* Schedule support
+# Signals
+
+## Instance Signals
+| Signal        | RW | Type   | Description       |
+|---------------|----|--------|-------------------|
+| `error`       | R  | Bool   | Comms error flag  |
+| `errmsg`      | R  | String | Comms error       |
+
+## Control System Signals 
+| Signal        | RW | Type   | Description       |
+|---------------|----|--------|-------------------|
+| status        | R  | JSON   | System status as JSON object    |
+| cmd           | RW | JSON   | System command point - write a JSON string here (see below) |
+
+
+### System Command Examples
+
+#### System Mode Change
+```json
+{
+    "command": "setmode",
+    "mode": "Auto",
+    "until": "2019-04-13T12:34:00Z"
+}
+```
+
+Where:
+ *    `mode` may be one of `Auto`, `AutoWithReset`, `Custom`, `AutoWithEco`, `Away`, `DayOff` or `HeatingOff`.
+ *   `until` sets duration for a temporary setting. It may be omitted.
+
+
+
+## Heating Zone Signals
+| Signal           | RW | Type   | Description       |
+|------------------|----|--------|-------------------|
+| `faults`         | R  | String | Zone faults as string |
+| `isAvailable`    | R  | Bool   | Zone is available <i>(I assume this means comms with controller is ok... )</i> |
+| `schedule`       | R  | JSON   | Zone schedule as JSON |
+| `setpoint`       | R  | Number | Current setpoint |
+| `force_setpoint` | RW | Number | Set to force setpoint override* |
+| `setpointMode`   | R  | String | Current Mode |
+| `temperature`    | R  | Number | Current Measured Temperature |
+| `zone`           | R  | JSON   | Combined zone status & schedule |
+| `zone_cmd`       | RW | JSON   | Zone command point - write a JSON string here (see below) |
+
+### Force Setpoint
+A quick way to override a zone. Setting a non-zero number will cause a permanent override to be applied; setting a zero or other "falsey" value will cause any override to be cancelled.
+
+
+### Zone Command examples
+
+#### Override Temperature
+
+```json
+{
+    "command": "Override",
+    "setpoint": 21.5,
+    "until": "2019-04-13T12:34:00Z"
+}
+```
+Where:
+ *   `until` sets duration for a temporary setting. It may be omitted.
+
+#### Cancel Override
+
+```json
+{
+    "command":"CancelOverride"
+}
+```
+
+#### Set Schehdule
+
+```json
+{
+    "command": "SetSchedule",
+    "schedule": (schedule)
+}
+```
+
+Where:
+ *   `(schedule)` is a a zone schedule object as found in the `.schedule` point. The format of this is set by Honeywell.
+
+
+# Widgets
+
+## System Widget
+ <img src="home.png" />
+
+ * Bind to the control system `Status` point
+ * The "cogwheel" &#9881; opens a settings dialog which allows the system mode to be changed.
+ * The background colour will change depending on the system state - at present, these are hard-coded:
+    * Red - There are system or zone faults
+    * Yellow - A zone is overridden
+    * Green - A zone is in Eco mode or system is in Away mode
+    * Grey - Normal operation
+    * Blue - Heating is Off
+    * Purple - DayOff or Custom Mode
+ * Errors will cause a warning icon to show: &#9888; - This will open a dialog giving more detail.
+
+## Zone Widget
+<img src="zone.png" />
+
+ * Bind to the Zone `zone` point
+ * The "cogwheel" &#9881; opens a settings dialog which allows the zone setpoint and schedule to be changed.
+ * Errors will cause a warning icon to show: &#9888; - This will open a dialog giving more detail.
+ * Colors vary to represent the zone state:
+    * The _centre_ represents the actual temperature
+    * The _edge_ represents the current setpoint
+    * See below for more on colours.
+ * The setpoint and current temperature formatting can be overridden by use of the `spFormat` and `mvFormat` attributes. The <a href="https://www.npmjs.com/package/sprintf-js">sprintf-js</a> module is used to provide formatting. e.g. `"%.1f"`    
+  * Likewise, `modeFormat` allows formatting of the mode string.
+  * The widget title is usually extracted from the object id - it can be overridden by the `titleText` attribute.
+  * A footer text can be added by setting the `footer` attribute 
+
+_You can use the various text and and formatting overrides to embed additional HTML code within the widget body - useful if you want to add links to other pages, etc_.
+
+### Colour Generation - `colours` and `interpolate`
+
+Colours are generated from a list of colour points, e.g.
+
+```json
+    $indoor: [
+    	{ t:15, b: 0x1E90FF, f:0x0000 },
+    	{ t:18, b: 0x0bb000, f:0x0000 },
+    	{ t:21, b: 0xdddd00, f:0x0000 },
+    	{ t:24, b: 0xff0000, f:0x0000 }
+    ],    
+
+    $outdoor: [
+    	{ t:8,  b: 0x1E90FF, f:0x0000 },
+    	{ t:12, b: 0x00bb00, f:0x0000 },
+    	{ t:18, b: 0xdddd00, f:0x0000 },
+    	{ t:22, b: 0xff0000, f:0x0000 }
+    ],    
+
+```
+Where `t` = temperature, `b` = background colour and `f` = foreground colour. The colours MUST be numeric codes. (You can't use colour names like "green" for instance.)
+
+ * The colours can be configured using the `colours` attribute. You can set `$indoor` (the default) `$outdoor` or custom JSON as above.
+ * Setting the `interpolate` attribute means the widget will try to work out intermediate colours if the temperature lies between two values.
+
+## Todo
+* Internationalisation
 * Hot Water support - can't do this as I have no hardware -T
 * Other EvoHome devices - can't do this as I have no hardware -T
 

@@ -867,7 +867,8 @@ vis.binds["evohome_system"] = {
             var $err_dialog = findId("-err-dialog")
                 .dialog({
                     autoOpen: false,
-                    modal: true
+                    modal: true,
+                    width:"auto"
                 });
 
             //$dialog.find('#duration').hide();
