@@ -474,7 +474,7 @@ vis.binds["evohome_zone"] = {
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _loadSchedule() {
-            let url = `/get/${zoneRoot()}.schedule`;
+            let url = `../get/${zoneRoot()}.schedule`;
             //console.log(url)
             $.ajax({
                     url: url, 
