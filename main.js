@@ -372,7 +372,8 @@ riable', {
                     }
                     
                     for(let zn of cs._zones()) {
-                        let sensor = channel+"."+zn.name;
+                        zn.$oid = sensor = channel+"."+zn.name;
+                        let sensor = zn.oid;
                         await this.makeObj("sensor",sensor);
                         sensor += ".";
                         await this.makeState( sensor+"temperature", "temperature", "number", this.unit );
@@ -445,7 +446,13 @@ riable', {
     async onZoneCommand(zn, state, id) {
         this.log.info(`OnZoneCmd ${id} = ${state.val}`);
         try {
-            await zn.doZoneCommand(state.val);
+            let cj = JSON.parse(state.val);
+            await zn.doZoneCommand(cj);
+
+            if(cj.command=="SetSchedule") {
+                // forcibly update the schedule point
+                this.setState(zn.$oid + ".schedule", { val: JSON.stringify(cj.schedule), ack: true});
+            }
         } catch(e) {
             this.log.error(e.stack);
         }

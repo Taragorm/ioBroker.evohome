@@ -18,6 +18,10 @@ Windows: [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/Taragor
 Provide an adaptor which can connect to the Honeywell EvoHome cloud, using the `emea` API, so might not work in the US.
 
 
+<span style="color:yellow;font-size:200%">&#9888;</span> _You must enable "Simple API" in the web instance settings for scedule editing to function correctly._
+
+The package also includes the free version of the <a href="https://fontawesome.com/">Fontawesome</a> symbol font. See <a href="https://fontawesome.com/license/free">license</a>.
+
 ## Instance settings
 
 | Setting       |  Description      |

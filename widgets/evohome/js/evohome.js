@@ -86,7 +86,9 @@ vis.binds["evohome_zone"] = {
 <table width='100%' height='100%' class='vis_evohome-table' style='background-color:#00ff00'>
 <tr><th> 
     ${title_html}
-    <span class='vis_evohome-err' >&#9888;</span>
+    <!-- <span class='vis_evohome-err' >&#9888;</span> -->
+    <span class='vis_evohome-err fas fa-exclamation-triangle' ></span> 
+
 </th></tr>
 <tr><td><span class='vis_evohome-mv'></span></td></tr>
 <tr><td>
@@ -94,7 +96,7 @@ vis.binds["evohome_zone"] = {
 </td></tr>
 <tr><td>
     <span class='vis_evohome-mode'></span> 
-    <span class='vis_evohome-set' >&#9881; <span class="vis_evohome-timed">&#9203;&#xFE0E;</span></span>            
+    <span class='vis_evohome-set'> <span class='fas fa-cog' ></span>  <span class="vis_evohome-timed fas fa-clock"></span></span>
 </td></tr>
     ${footer}
 </table>
@@ -789,11 +791,11 @@ vis.binds["evohome_system"] = {
             <table width='100%' height='100%' class='vis_evohome-table' style='background-color:#00ff00'>
             <tr><th> 
                 ${title}
-                <span class='vis_evohome-err' >&#9888;</span>
+                <span class='vis_evohome-err fas fa-exclamation-triangle' ></span>
             </th></tr>
             <tr><td>
                 <span class='vis_evohome-mode'></span> 
-                <span class='vis_evohome-set' >&#9881;<span class="vis_evohome-timed">&#9203;&#xFE0E;</span></span>            
+                <span class='vis_evohome-set' > <span class="fas fa-cog"></span>  <span class="vis_evohome-timed fas fa-clock"></span></span>            
             </td></tr>
             </table>
 
