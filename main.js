@@ -372,7 +372,8 @@ riable', {
                     }
                     
                     for(let zn of cs._zones()) {
-                        zn.$oid = sensor = channel+"."+zn.name;
+
+                        zn.$oid = channel+"."+zn.name;
                         let sensor = zn.oid;
                         await this.makeObj("sensor",sensor);
                         sensor += ".";
