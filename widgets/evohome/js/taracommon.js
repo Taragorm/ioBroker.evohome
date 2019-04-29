@@ -5,7 +5,7 @@
 
 var taragorm_common = {
 //var taragorm_common = taragorm_common || {
-        version : 1,
+        version : 2,
 
     NANColor : { b: "gray", f:"black"},
 
@@ -145,7 +145,7 @@ var taragorm_common = {
     
     getColoursCSS : function(t, vect, interp) {
         let c = this.getColours(t,vect, interp);
-        return { "foreground-color": c.f, "background-color": c.b };
+        return { "color": c.f, "background": c.b };
     },
 
     getColourVector: function(vname) {

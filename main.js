@@ -245,15 +245,19 @@ riable', {
         if(this.needConnect) {
             this.log.info(`(Re)Connect due to ${this.needConnect}`);
             await this.evo.login();
-            await this.initObjects();
             this.needConnect = "";
+            await this.initObjects();
             this.log.info("Connected ok");
         }
+
+        if(this.needConnect) 
+            return;
         
         await this.mergeStatus();
         
         if(this.evo.structureError) {
             this.log.info(`Structure refresh due to ${this.evo.structureError}`);
+            this.needConnect = "StructureError";
             await this.initObjects();
             // catch the update next time...
         }
@@ -263,10 +267,11 @@ riable', {
      * Move the evo data to iob
      * @param {boolean} quick   Don't get schedules
      */
-    async mergeStatus(quick) {
-        await this.evo.getStatus(quick);
-        for(let loc of this.evo.locations()) {
+    async mergeStatus(quick,nofetch) {
+        if(!nofetch) 
+            await this.evo.getStatus(quick);
 
+        for(let loc of this.evo.locations()) {
             for(let gw of loc.gateways) {
                 for(let cs of gw.systems()) {
                     let gsid = this.GSId(gw,cs);
@@ -346,7 +351,17 @@ riable', {
      */
     async initObjects() {
         const that = this;
+
+        if(!this.evo.installation) {
+            this.log.error("No Install data found!");
+            this.needConnect = "No Loc";
+            return;
+        }
+
         for(let loc of this.evo.locations()) {
+
+            this.log.info(`Create Loc ${loc.name()}`)
+
             await this.makeObj("device",loc.name());
 
             if(this.config.simpleTree) {
@@ -373,8 +388,10 @@ riable', {
                     
                     for(let zn of cs._zones()) {
 
+                        this.log.info(`Create Zn ${zn.name}`)
+
                         zn.$oid = channel+"."+zn.name;
-                        let sensor = zn.oid;
+                        let sensor = zn.$oid;
                         await this.makeObj("sensor",sensor);
                         sensor += ".";
                         await this.makeState( sensor+"temperature", "temperature", "number", this.unit );
@@ -452,7 +469,8 @@ riable', {
 
             if(cj.command=="SetSchedule") {
                 // forcibly update the schedule point
-                this.setState(zn.$oid + ".schedule", { val: JSON.stringify(cj.schedule), ack: true});
+                await this.mergeStatus(null, /* no fetch= */ true); 
+                //this.setState(zn.$oid + ".schedule", { val: JSON.stringify(cj.schedule), ack: true});
             }
         } catch(e) {
             this.log.error(e.stack);

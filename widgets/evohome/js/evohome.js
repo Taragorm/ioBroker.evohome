@@ -457,7 +457,7 @@ vis.binds["evohome_zone"] = {
             switch(ui.newPanel.attr('id')) {
                 case "schedule":
                     if(!ui.newPanel.data("schedule")) {
-                        _loadSchedule();
+                        _getSchedule();
                     }
                     break;
 
@@ -473,18 +473,21 @@ vis.binds["evohome_zone"] = {
             return zone_oid.substring(0, zone_oid.lastIndexOf('.'));
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        function _loadSchedule() {
-            let url = `../get/${zoneRoot()}.schedule`;
+//        function _loadSchedule() {
+
+
+//            let url = `../get/${zoneRoot()}.schedule`;
             //console.log(url)
-            $.ajax({
-                    url: url, 
-                    success: _gotSchedule
-              });            
-        }
+//            $.ajax({
+//                    url: url, 
+//                    success: _gotSchedule
+//              });            
+//        }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        function _gotSchedule(result) {
+        function _getSchedule() {
             //console.log(result);
-            let sch =  JSON.parse(result.val);
+            let st = JSON.parse(vis.states[ zone ]);
+            let sch = st.schedule;
             let $sel = $dialog.find("#daysel").data("schedule", sch);
             
             for (let di=0; di<sch.dailySchedules.length; ++di ) {
@@ -514,7 +517,7 @@ vis.binds["evohome_zone"] = {
                 let clrs = taragorm_common.getColours( Number(swp.heatSetpoint), vect, interpolate);
                 lst.push(
 `<input type='radio' name='rad-swpt' value='${swp.timeOfDay}' id='${"swp_"+ix}' ${checked ? "checked" : ""} > 
-<label id='${"lswp_"+ix}' for='${"swp_"+ix}' style='width:100%;foreground-color:${clrs.f};background-color:${clrs.b}'>${swp.timeOfDay} ${fmtTemp(swp.heatSetpoint)}&deg;C</label><br>`
+<label id='${"lswp_"+ix}' for='${"swp_"+ix}' style='width:100%;color:${clrs.f};background:${clrs.b}'>${swp.timeOfDay} ${fmtTemp(swp.heatSetpoint)}&deg;C</label><br>`
                     );
                 ++ix;
             }

@@ -163,21 +163,21 @@ class Evo {
         // Fixup the installation objects 
      
         for(let i=0; i<this.installation.length; ++i) {
-            console.log(`Loc ${i}`);
+            //this.log.info(`Loc ${i}`);
             let loc = new Location(this, this.installation[i]);
             this.installation[i] = loc;
             for(let j=0; j<loc.gateways.length; ++j) {
-                console.log(`  Gate ${j}`);
+                //this.log.info(`  Gate ${j}`);
                 let gate = new Gateway(loc, loc.gateways[j]);
                 loc.gateways[j] = gate;
                 for(let k=0; k<gate.temperatureControlSystems.length; ++k) {
-                    console.log(`    System ${k}`);
+                    //this.log.info(`    System ${k}`);
                     let sys = new TemperatureControlSystem(gate, gate.temperatureControlSystems[k]);
                     gate.temperatureControlSystems[k] = sys;
                     for(let l=0; l<sys.zones.length; ++l) {
                         let zn = sys.makeZoneObject(l);
                         sys.zones[l] = zn;
-                        console.log(`        zn ${l} ${zn.name}`);
+                        //this.log.info(`        zn ${l} ${zn.name}`);
                     }
                     
                     if(this.system===undefined) {
@@ -516,7 +516,7 @@ class ZoneBase {
      */
     state() {
         if(!this.status)
-            return {
+            return {                
                 temperature: undefined,
                 isAvailable: undefined,
                 setpoint: undefined,
@@ -525,6 +525,7 @@ class ZoneBase {
             };
         
         return {
+            schedule:     this.$schedule,
             temperature:  this.status.temperatureStatus.temperature,
             isAvailable:  this.status.temperatureStatus.isAvailable,
             setpoint:     this.status.setpointStatus.targetHeatTemperature,
@@ -554,11 +555,13 @@ class ZoneBase {
         });
 
         this.$schedule = new DailySchedule(schedule, this.$evo.log);
-
+        
         return this.$schedule;
     }
     //------------------------------------------------------------------
-    async setSchedule(schedule) {
+    async setSchedule(sch) {
+        if( typeof sch == "string")            
+            sch = JSON.parse(sch);
 
         let headers = await this.$evo.headers(true); 
         
@@ -568,13 +571,15 @@ class ZoneBase {
             method:'PUT',
             uri: uri,
             headers: headers,
-            json: schedule
+            json: sch
         });
         
         if(this.$evo.onCommand) await this.$evo.onCommand({
             "cmd":"setschedule", 
             "zone": this
         })
+
+        this.$schedule = new DailySchedule(sch, this.$evo.log);
 
     }
     //------------------------------------------------------------------
