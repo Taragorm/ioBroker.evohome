@@ -955,7 +955,7 @@ vis.binds["evohome_system"] = {
             } else if(status.mode === "DayOff" || status.mode === "Custom") {
                 color = "mediumpurple";
             } else {
-                color = "gray";
+                color = "lightgray";
             // Auto, Auto with reset 
             }
 
