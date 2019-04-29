@@ -5,7 +5,7 @@
 
 var taragorm_common = {
 //var taragorm_common = taragorm_common || {
-        version : 2,
+        version : 3,
 
     NANColor : { b: "gray", f:"black"},
 
@@ -18,7 +18,7 @@ var taragorm_common = {
      */
     $indoor: [
     	{ t:15, b: 0x1E90FF, f:0x0000 },
-    	{ t:18, b: 0x0bb000, f:0x0000 },
+    	{ t:18, b: 0x00e000, f:0x0000 },
     	{ t:21, b: 0xdddd00, f:0x0000 },
     	{ t:24, b: 0xff0000, f:0x0000 }
     ],    
@@ -28,7 +28,7 @@ var taragorm_common = {
      */
     $outdoor: [
     	{ t:8,  b: 0x1E90FF, f:0x0000 },
-    	{ t:12, b: 0x00bb00, f:0x0000 },
+    	{ t:12, b: 0x00e000, f:0x0000 },
     	{ t:18, b: 0xdddd00, f:0x0000 },
     	{ t:22, b: 0xff0000, f:0x0000 }
     ],    
@@ -38,14 +38,14 @@ var taragorm_common = {
      */
     $laser: [
     	{ t:12, b: 0x1E90FF, f:0x0000 },
-    	{ t:24, b: 0x0bb000, f:0x0000 },
+    	{ t:24, b: 0x00e000, f:0x0000 },
     	{ t:26, b: 0xdddd00, f:0x0000 },
     	{ t:30, b: 0xff0000, f:0x0000 }
     ],    
     
     /**
      * Return highest version object of this and the other one.
-     * @param {taracommon} other 
+     * @param {tara_common} other 
      */
     resolve: function(other) {
         return (!other || this.version > other.version) ? this : other;
