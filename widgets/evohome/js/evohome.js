@@ -341,7 +341,7 @@ vis.binds["evohome_zone"] = {
                     
             var mvcols = taragorm_common.getColours(mv, vect, interpolate);
             var spbg = taragorm_common.getBackground(sp, vect, interpolate);
-            $table.css({ "background": "radial-gradient("+ mvcols.b+", "+ spbg + ")", "foreground-color": mvcols.f } );                            
+            $table.css({ "background": "radial-gradient("+ mvcols.b+" 35%, "+ spbg + " 65%)", "color": mvcols.f } );                            
             $mode.html( sprintf(mode_fmt, shortmodes[mode] || mode) ); 
 
             if(available && faults.length==0) $err.hide(); else $err.show();
