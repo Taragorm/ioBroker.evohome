@@ -851,7 +851,7 @@ vis.binds["evohome_system"] = {
             `);
             
             var $table = $div.find('.vis_evohome-table');
-            var $timed = $div.find('.vis_evohome-timed')
+            var $timed = $div.find('.vis_evohome-timed');
             var $mode = $div.find('.vis_evohome-mode');
 
             $div.find(".vis_evohome-set").click( _openModeDialog );
