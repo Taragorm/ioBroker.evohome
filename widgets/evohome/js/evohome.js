@@ -60,6 +60,7 @@ vis.binds["evohome_zone"] = {
             let footer = data.footer ? `<tr><td>${data.footer}` : "";
             var edit_sch_day;
             var $edit_swpt;
+            var offSp = data.offSp;
 
 
             var $div = $('#' + widgetID);
@@ -338,10 +339,18 @@ vis.binds["evohome_zone"] = {
                 
             $mv.html( taragorm_common.format(mv_fmt, mv) );
             $sp.html( taragorm_common.format(sp_fmt, sp) );
-                    
-            var mvcols = taragorm_common.getColours(mv, vect, interpolate);
-            var spbg = taragorm_common.getBackground(sp, vect, interpolate);
-            $table.css({ "background": "radial-gradient("+ mvcols.b+" 35%, "+ spbg + " 65%)", "color": mvcols.f } );                            
+                 
+            if(offSp != undefined && sp <= offSp) {
+                // just show single colour
+                let colours = taragorm_common.getColoursCSS(mv, vect, data.interpolate);
+                $table.css( colours );    
+            } else {            
+                // show blend
+                let mvcols = taragorm_common.getColours(mv, vect, interpolate);
+                let spbg = taragorm_common.getBackground(sp, vect, interpolate);
+                $table.css({ "background": "radial-gradient("+ mvcols.b+" 35%, "+ spbg + " 65%)", "color": mvcols.f } );                            
+            }
+
             $mode.html( sprintf(mode_fmt, shortmodes[mode] || mode) ); 
 
             if(available && faults.length==0) $err.hide(); else $err.show();

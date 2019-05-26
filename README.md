@@ -167,6 +167,7 @@ Where:
     * The _centre_ represents the actual temperature
     * The _edge_ represents the current setpoint
     * See below for more on colours.
+    * If `offSp` is set, setpoints below this value will be suppressed for two-colour blends, and only the `mv` will be used.
  * The setpoint and current temperature formatting can be overridden by use of the `spFormat` and `mvFormat` attributes. The <a href="https://www.npmjs.com/package/sprintf-js">sprintf-js</a> module is used to provide formatting. e.g. `"%.1f"`    
   * Likewise, `modeFormat` allows formatting of the mode string.
   * The widget title is usually extracted from the object id - it can be overridden by the `titleText` attribute.
@@ -176,7 +177,7 @@ _You can use the various text and and formatting overrides to embed additional H
 
 ### Colour Generation - `colours` and `interpolate`
 
-Colours are generated from a list of colour points, e.g.
+Colours are generated from a list of switch points and colour codes, e.g.
 
 ```json
     $indoor: [
@@ -196,8 +197,29 @@ Colours are generated from a list of colour points, e.g.
 ```
 Where `t` = temperature, `b` = background colour and `f` = foreground colour. The colours MUST be numeric codes. (You can't use colour names like "green" for instance.)
 
- * The colours can be configured using the `colours` attribute. You can set `$indoor` (the default) `$outdoor` or custom JSON as above.
+ * The colours can be configured using the `colours` attribute. You can set `$indoor` (the default) `$outdoor` or a custom vector as described below .
  * Setting the `interpolate` attribute means the widget will try to work out intermediate colours if the temperature lies between two values.
+ * The default is `$indoor`
+
+#### Custom Colour Vector
+
+```
+10 blue
+15 green
+30 red white
+```
+
+If the `colours` attribute does not start with `$`, then it is assumed to be a list of switchpoints and associated colour(s), one per line, with each line having the format:
+
+```
+<SwitchValue> <Background> [<Foreground>]
+```
+
+ * The switch value should be a number - rows should be in ascending order
+ * The colours may be:
+   * A HTML colour name
+   * A 6 digit hex colour code e.g. #ff55ff
+ * The default foreground is black
 
 ## Todo
 * Internationalisation
