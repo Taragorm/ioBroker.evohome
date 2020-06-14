@@ -125,7 +125,7 @@ riable', {
     }
     //----------------------------------------------------------------------------------------------
     async setErrorMessage(msg){
-        await this.setStateAsync("errmsg",  { val: msg, ack: true} );
+        await this.setStateAsync("errmsg",  { val: /*msg*/ "[buggy]", ack: true} );
         await this.setStateAsync("error",  { val: Boolean(msg), ack: true} );
     }
     //----------------------------------------------------------------------------------------------
@@ -182,11 +182,11 @@ riable', {
                 let msg=  err.message || "?ERROR?";
                 try {
                     let o = JSON.parse(err.message);                    
-                    msg = o.error ? o.error : err.messare;
+                    msg = o.error ? o.error : err.message;
                 }
                 catch(ex) {}
 
-                this.writeErrorStates( err.message || "Undefined" );
+                this.writeErrorStates( /*err.message ||*/ "?UNK?" );
                 this.log.error(err.stack); 
                 this.needConnect = "Worker Error:" + err;
             }
