@@ -125,7 +125,7 @@ riable', {
     }
     //----------------------------------------------------------------------------------------------
     async setErrorMessage(msg){
-        await this.setStateAsync("errmsg",  { val: /*msg*/ "[buggy]", ack: true} );
+        await this.setStateAsync("errmsg",  { val: msg, ack: true} );
         await this.setStateAsync("error",  { val: Boolean(msg), ack: true} );
     }
     //----------------------------------------------------------------------------------------------
@@ -186,7 +186,7 @@ riable', {
                 }
                 catch(ex) {}
 
-                this.writeErrorStates( /*err.message ||*/ "?UNK?" );
+                this.writeErrorStates( err.message || "?UNK?" );
                 this.log.error(err.stack); 
                 this.needConnect = "Worker Error:" + err;
             }
