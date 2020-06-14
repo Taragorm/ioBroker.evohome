@@ -264,7 +264,7 @@ riable', {
     }
     //----------------------------------------------------------------------------------------------
 	stringify(obj, replacer, spaces, cycleReplacer) {
-	  return JSON.stringify(obj, serializer(replacer, cycleReplacer), spaces)
+	  return JSON.stringify(obj, this.serializer(replacer, cycleReplacer), spaces)
 	}
 	
     //----------------------------------------------------------------------------------------------
@@ -316,8 +316,8 @@ riable', {
                         ss("setpointMode");
                         ss("faults");
 
-                        this.setState(sensor+"zone", { val: stringify(st), ack: true});
-                        this.setState(sensor+"schedule", { val: stringify(zn.$schedule), ack: true});
+                        this.setState(sensor+"zone", { val: this.stringify(st), ack: true});
+                        this.setState(sensor+"schedule", { val: this.stringify(zn.$schedule), ack: true});
                     }
 
                     if(gsid) { 
