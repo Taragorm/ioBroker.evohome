@@ -263,12 +263,12 @@ riable', {
         }
     }
     //----------------------------------------------------------------------------------------------
-	function stringify(obj, replacer, spaces, cycleReplacer) {
+	stringify(obj, replacer, spaces, cycleReplacer) {
 	  return JSON.stringify(obj, serializer(replacer, cycleReplacer), spaces)
 	}
 	
     //----------------------------------------------------------------------------------------------
-	function serializer(replacer, cycleReplacer) {
+	serializer(replacer, cycleReplacer) {
 	  var stack = [], keys = []
 	
 	  if (cycleReplacer == null) cycleReplacer = function(key, value) {
