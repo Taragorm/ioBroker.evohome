@@ -1,5 +1,5 @@
 /*
-    ioBroker.vis vistaragorm Widget-Set
+    ioBroker.vis evohome Widget-Set
 
     version: "0.0.1"
 
