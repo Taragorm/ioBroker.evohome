@@ -1,7 +1,7 @@
 {
   "name": "iobroker.evohome",
   "version": "1.0.0",
-  "description": "Template for adapter development",
+  "description": "Evohome Adaptor",
   "author": {
     "name": "Taragorm",
     "email": "taragorm@zoho.eu"
