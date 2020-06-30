@@ -1,7 +1,7 @@
 /*
     ioBroker.vis evohome Widget-Set
 
-    version: "0.0.1"
+    version: "1.0.0"
 
     Copyright 2019 Taragorm taragorm@zoho.eu
 */
