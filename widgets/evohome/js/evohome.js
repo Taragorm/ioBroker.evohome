@@ -17,7 +17,7 @@ $.get( "adapter/evohome/words.js", function(script) {
 
 
 vis.binds["evohome_zone"] = {
-    version: "0.0.2",
+    version: "1.0.0",
     
     showVersion: function () {
         if (vis.binds["evohome_zone"].version) {
@@ -277,13 +277,16 @@ vis.binds["evohome_zone"] = {
             $dialog.find("#delsch").button().click(_schDel);
 
 
-            setValues(vis.states[ zone ]);
             
             // subscribe on updates of values
             let bound = [];
             let handlers = [];
             
             if(zone_oid) {
+                //console.log("binding for ", zone);
+                //console.log(vis.states[ zone ]);
+                //console.log(JSON.stringify(vis.states));
+                setValues(vis.states[ zone ]);
                 bound.push( zone );
                 handlers.push(setValues);
                 vis.states.bind(zone, function (e, newVal, oldVal) {
@@ -296,8 +299,7 @@ vis.binds["evohome_zone"] = {
                 $div.data('bindHandler', handlers);
             }
 
-            //this.
-            
+
         } catch(ex) {
             console.error(ex);
         }
@@ -313,19 +315,21 @@ vis.binds["evohome_zone"] = {
             Update the HTML with live data.
 
             @param ctx      Context object
-            @param vjson	Value state as JSON
+            @param vjson	Value state as JSON string
         */
         function setValues(vjson) {
-            
+
             //console.log("setvalues v=",vjson);         
             try {   
                 var v = JSON.parse(vjson);
             } catch(ex) {
+                console.log("setvalues ex: ",vjson); 
                 v = { "error":"BadData"};
             }
 
-            if(v.error) {
-                $mode.html( v.error ); 
+            if(!v || v.error) {
+                console.log("setvalues v=",vjson); 
+                $mode.html( v ? v.error : "(NoData)" ); 
                 $table.css("background","magenta");
                 return;
             }
@@ -372,10 +376,17 @@ vis.binds["evohome_zone"] = {
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         function _openErrorDialog () {
-            $err_dialog.html(`
-<b>Available: </b> ${available}<br>
-<b>Faults: </b> ${faults ? faults.join() : ""}
-`);
+
+            let _html = `<b>Available: </b> ${available}<br>`;
+
+            if(faults)
+            {
+                _html =  _html.concat("<b>Faults:</b></br>")
+                faults.forEach(e => {
+                    _html = _html.concat(`${e.faultType} since ${e.since}</br>`);
+                });
+            }            
+            $err_dialog.html(_html);
             $err_dialog.dialog("open");
         }
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -765,7 +776,7 @@ vis.binds["evohome_zone"] = {
  * global commands.
  */
 vis.binds["evohome_system"] = {
-    version: "0.0.1",
+    version: "1.0.0",
     
     showVersion: function () {
         if (vis.binds["evohome_system"].version) {

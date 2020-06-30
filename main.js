@@ -74,54 +74,7 @@ class EvoAdaptor extends utils.Adapter {
         } catch(ex) {
           this.log.error(ex.stack);  
         }
-        // The adapters config (in the instance object everything under the attribute "native") is accessible via
-        // this.config:
-        //this.log.info('config test1: ' + this.config.option1);
-        //this.log.info('config test1: ' + this.config.option2);
 
-        /*
-        For every state in the system there has to be also an object of type state
-        Here a simple template for a boolean variable named "testVariable"
-        Because every adapter instance uses its own unique namespace variable names can't collide with other adapters variables
-        */
-        /*
-        await this.setObjectAsync('testVa                        let gsid = this.GSId(gw,cs);
-riable', {
-            type: 'state',
-            common: {
-                name: 'testVariable',
-                type: 'boolean',
-                role: 'indicator',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-        */
-        
-        // in this template all states changes inside the adapters namespace are subscribed
-        //this.subscribeStates('*');
-
-        /*
-        setState examples
-        you will notice that each setState will cause the stateChange event to fire (because of above subscribeStates cmd)
-        */
-        // the variable testVariable is set to true as command (ack=false)
-        //await this.setStateAsync('testVariable', true);
-
-        // same thing, but the value is flagged "ack"
-        // ack should be always set to true if the value is received from or acknowledged from the target system
-        //await this.setStateAsync('testVariable', { val: true, ack: true });
-
-        // same thing, but the state is deleted after 30s (getState will return null afterwards)
-        //await this.setStateAsync('testVariable', { val: true, ack: true, expire: 30 });
-
-        // examples for the checkPassword/checkGroup functions
-        //let result = await this.checkPasswordAsync('admin', 'iobroker');
-        //this.log.info('check user admin pw ioboker: ' + result);
-
-        //result = await this.checkGroupAsync('admin', 'admin');
-        //this.log.info('check group user admin group admin: ' + result);
     }
     //----------------------------------------------------------------------------------------------
     async setErrorMessage(msg){
@@ -201,24 +154,7 @@ riable', {
      * @param {string} msg 
      */
     async writeErrorStates(msg)
-    {
-/*
-    {
-        "type": "state",
-        "common": {
-            "name": "Laser Operational",
-            "type": "boolean",
-            "role": "Value",
-            "read": true,
-            "unit": "",
-            "write": true
-        },
-        "native": {},
-        "from": "system.adapter.shed.0",
-        "ts": 1553252313931,
-        "_id": "shed.0.state.relay"
-    },
- */        
+    {     
         this.log.info(`Checking states for statuses`);
         await this.setErrorMessage(msg);
         let states = await this.getStatesOfAsync();
@@ -263,10 +199,17 @@ riable', {
         }
     }
     //----------------------------------------------------------------------------------------------
+	stringifyNotNull(obj, replacer, spaces, cycleReplacer) {
+        if(obj || obj !== 0)
+            return JSON.stringify(obj, this.serializer(replacer, cycleReplacer), spaces)
+        else
+            return null
+      }
+    //----------------------------------------------------------------------------------------------
 	stringify(obj, replacer, spaces, cycleReplacer) {
-	  return JSON.stringify(obj, this.serializer(replacer, cycleReplacer), spaces)
-	}
-	
+        return JSON.stringify(obj, this.serializer(replacer, cycleReplacer), spaces)
+      }
+        
     //----------------------------------------------------------------------------------------------
 	serializer(replacer, cycleReplacer) {
 	  var stack = [], keys = []
@@ -277,6 +220,10 @@ riable', {
 	  }
 	
 	  return function(key, value) {
+
+        if(key.startsWith("$"))
+            return undefined; // always ignore these
+
 	    if (stack.length > 0) {
 	      var thisPos = stack.indexOf(this)
 	      ~thisPos ? stack.splice(thisPos + 1) : stack.push(this)
@@ -314,8 +261,9 @@ riable', {
                         ss("isAvailable");
                         ss("setpoint");
                         ss("setpointMode");
-                        ss("faults");
-
+                        //ss("faults");
+                        
+                        this.setState(sensor+"faults", { val: this.stringifyNotNull(st.faults), ack: true});
                         this.setState(sensor+"zone", { val: this.stringify(st), ack: true});
                         this.setState(sensor+"schedule", { val: this.stringify(zn.$schedule), ack: true});
                     }
@@ -419,7 +367,7 @@ riable', {
 
                         zn.$oid = channel+"."+zn.name;
                         let sensor = zn.$oid;
-                        await this.makeObj("sensor",sensor);
+                        await this.makeObj("channel",sensor);
                         sensor += ".";
                         await this.makeState( sensor+"temperature", "temperature", "number", this.unit );
                         await this.makeState( sensor+"isAvailable", "isAvailable", "boolean" );

@@ -1,6 +1,6 @@
 {
   "name": "iobroker.evohome",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "description": "Template for adapter development",
   "author": {
     "name": "Taragorm",
